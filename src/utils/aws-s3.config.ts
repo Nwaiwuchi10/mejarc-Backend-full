@@ -41,11 +41,10 @@ export function createS3Storage(keyPrefix: string) {
     return memoryStorage();
   }
 
-  return multerS3({
+  return (multerS3 as any)({
     s3: s3Client as any,
     bucket: AWS_S3_BUCKET_NAME,
     acl: 'public-read',
-    contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const sanitized = file.originalname
         .replace(/\s+/g, '')
