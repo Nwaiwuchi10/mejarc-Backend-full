@@ -24,8 +24,7 @@ import {
   FileInterceptor,
   FileFieldsInterceptor,
 } from '@nestjs/platform-express';
-import { AWS_S3_BUCKET_NAME, s3Client } from 'src/utils/aws-s3.config';
-import multerS3 from 'multer-s3';
+import { createS3Storage } from 'src/utils/aws-s3.config';
 
 @Controller('agent')
 export class AgentController {
@@ -50,18 +49,7 @@ export class AgentController {
   @Post(':userId/profile')
   @UseInterceptors(
     FileInterceptor('profilePicture', {
-      storage: multerS3({
-        s3: s3Client as any,
-        bucket: AWS_S3_BUCKET_NAME,
-        acl: 'public-read',
-        contentType: multerS3.AUTO_CONTENT_TYPE,
-        key: (req, file, cb) => {
-          const sanitized = file.originalname
-            .replace(/\s+/g, '')
-            .replace(/[^a-zA-Z0-9.-]/g, '');
-          cb(null, `agent-profile-pics/${Date.now()}-${sanitized}`);
-        },
-      }),
+      storage: createS3Storage('agent-profile-pics'),
       limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max for profile pics
     }),
   )
@@ -104,18 +92,7 @@ export class AgentController {
         { name: 'architectCert', maxCount: 1 },
       ],
       {
-        storage: multerS3({
-          s3: s3Client as any,
-          bucket: AWS_S3_BUCKET_NAME,
-          acl: 'public-read',
-          contentType: multerS3.AUTO_CONTENT_TYPE,
-          key: (req, file, cb) => {
-            const sanitized = file.originalname
-              .replace(/\s+/g, '')
-              .replace(/[^a-zA-Z0-9.-]/g, '');
-            cb(null, `agent-kyc-documents/${Date.now()}-${sanitized}`);
-          },
-        }),
+        storage: createS3Storage('agent-kyc-documents'),
         limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max for documents
       },
     ),
