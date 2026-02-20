@@ -25,7 +25,7 @@ import {
   FileFieldsInterceptor,
 } from '@nestjs/platform-express';
 import { AWS_S3_BUCKET_NAME, s3Client } from 'src/utils/aws-s3.config';
-import * as multerS3 from 'multer-s3';
+import multerS3 from 'multer-s3';
 
 @Controller('agent')
 export class AgentController {
