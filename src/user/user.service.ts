@@ -15,7 +15,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MailService } from './service/mail.service';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UserService {
@@ -285,8 +284,7 @@ export class UserService {
 
     // generate token
 
-    const token = uuidv4();
-    // const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     staff.resetToken = token;
