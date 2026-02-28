@@ -6,11 +6,12 @@ import { UserAuthGuard } from './guard/user.guard';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UserAddress } from './entities/user-adress.entity';
+import { Agent } from '../agent/entities/agent.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, UserAddress])],
+  imports: [TypeOrmModule.forFeature([User, UserAddress, Agent])],
   controllers: [UserController],
   providers: [UserService, MailService, UserAuthGuard],
-  exports: [MailService],
+  exports: [MailService, UserAuthGuard, UserService],
 })
-export class UserModule {}
+export class UserModule { }

@@ -19,6 +19,7 @@ export class AgentProfileResponseDto {
   // Profile fields
   yearsOfExperience?: number;
   preferredTitle?: string;
+  licenseNumber?: string;
   specialization?: string[];
   portfolioLink?: string;
   profilePicture?: string;
@@ -60,6 +61,7 @@ export class AgentProfileResponseDto {
       rejectionReason: agent.rejectionReason,
       yearsOfExperience: profile?.yearsOfExperience,
       preferredTitle: profile?.preferredTitle,
+      licenseNumber: profile?.licenseNumber,
       specialization: profile?.specialization,
       portfolioLink: profile?.portfolioLink,
       profilePicture: profile?.profilePicture,

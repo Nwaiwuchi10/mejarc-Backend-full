@@ -9,6 +9,22 @@ import {
 } from 'typeorm';
 import { Agent } from './agent.entity';
 
+export enum ProfessionalTitle {
+  ARCHITECT = 'Architect',
+  STRUCTURAL_ENGINEER = 'Structural Engineer',
+  MEP_ENGINEER = 'MEP Engineer',
+  ARCHITECTURAL_DESIGNER = 'Architectural Designer',
+  BIM_MODELLER = 'BIM Modeller',
+  LANDSCAPE_ARCHITECT = 'Landscape Architect',
+  PRODUCT_DESIGNER = 'Product Designer',
+}
+
+/** Titles that legally require a professional license number */
+export const TITLES_REQUIRING_LICENSE: ProfessionalTitle[] = [
+  ProfessionalTitle.ARCHITECT,
+  ProfessionalTitle.STRUCTURAL_ENGINEER,
+];
+
 @Entity('agent_profiles')
 export class AgentProfile {
   @PrimaryGeneratedColumn('uuid')
@@ -27,8 +43,15 @@ export class AgentProfile {
   @Column({ type: 'int', nullable: true })
   yearsOfExperience?: number;
 
+  @Column({
+    type: 'enum',
+    enum: ProfessionalTitle,
+    nullable: true,
+  })
+  preferredTitle?: ProfessionalTitle;
+
   @Column({ nullable: true })
-  preferredTitle?: string;
+  licenseNumber?: string;
 
   @Column({ type: 'simple-array', nullable: true })
   specialization?: string[];

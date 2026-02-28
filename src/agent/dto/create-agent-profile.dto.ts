@@ -1,4 +1,18 @@
-import { IsString, IsOptional, IsNumber, IsArray, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  Min,
+  Max,
+  IsEnum,
+  ValidateIf,
+  IsNotEmpty,
+} from 'class-validator';
+import {
+  ProfessionalTitle,
+  TITLES_REQUIRING_LICENSE,
+} from '../entities/agent-profile.entity';
 
 export class CreateAgentProfileDto {
   @IsNumber()
@@ -6,8 +20,21 @@ export class CreateAgentProfileDto {
   @Max(70)
   yearsOfExperience: number;
 
+  @IsEnum(ProfessionalTitle, {
+    message: `preferredTitle must be one of: ${Object.values(ProfessionalTitle).join(', ')}`,
+  })
+  preferredTitle: ProfessionalTitle;
+
+  /**
+   * Required when preferredTitle is 'Architect' or 'Structural Engineer'.
+   */
+  @ValidateIf(
+    (o) =>
+      TITLES_REQUIRING_LICENSE.includes(o.preferredTitle as ProfessionalTitle),
+  )
+  @IsNotEmpty({ message: 'licenseNumber is required for your selected title' })
   @IsString()
-  preferredTitle: string;
+  licenseNumber?: string;
 
   @IsArray()
   @IsString({ each: true })

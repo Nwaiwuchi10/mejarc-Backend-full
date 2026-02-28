@@ -13,6 +13,9 @@ import { DataSource, Repository } from 'typeorm';
 import { UserAddress } from './entities/user-adress.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MailService } from './service/mail.service';
+import { Agent } from '../agent/entities/agent.entity';
+import { PaginationDto } from '../utils/pagination.dto';
+import { Like } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
@@ -24,9 +27,11 @@ export class UserService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserAddress)
     private readonly addressRepo: Repository<UserAddress>,
+    @InjectRepository(Agent)
+    private readonly agentRepo: Repository<Agent>,
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async create(dto: CreateUserDto, file?: Express.Multer.File) {
     return this.dataSource.transaction(async (manager) => {
@@ -174,8 +179,8 @@ export class UserService {
   }
 
   /**
-   * Step 2: Verify login token and complete authentication
-   * Returns user data if token is valid
+   * Step 2: Verify login token and complete authentication.
+   * Detects if the user is also an agent and issues separate tokens.
    */
   async verifyLoginToken(verifyDto: VerifyLoginTokenDto) {
     // === Find user by email ===
@@ -220,32 +225,55 @@ export class UserService {
 
     const updatedUser = await this.userRepo.save(user);
 
+    // === Detect agent role ===
+    const agentRecord = await this.agentRepo.findOne({
+      where: { userId: updatedUser.id },
+    });
+    const isAgent = !!agentRecord;
+
     // === Send login success email ===
-    await this.mailService.staffLoginMail(updatedUser);
+    try {
+      await this.mailService.staffLoginMail(updatedUser);
+    } catch (_) { }
 
     // === Return safe user data (without password) ===
     const { password, ...userDataWithoutPassword } = updatedUser;
 
+    // Always issue user token
+    const userToken = this.jwtService.sign({
+      userId: updatedUser.id,
+      role: 'user',
+    });
+
+    // Also issue agent token if user has an agent record
+    const agentToken = isAgent
+      ? this.jwtService.sign({
+        userId: updatedUser.id,
+        agentId: agentRecord!.id,
+        role: 'agent',
+      })
+      : undefined;
+
     return {
       success: true,
       message: 'Login successful',
+      isAgent,
+      role: isAgent ? 'agent' : 'user',
       user: userDataWithoutPassword,
-      token: this.generateJwt(updatedUser.id),
+      userToken,
+      ...(isAgent && { agentToken }),
     };
   }
 
   /**
-   * Generate a real JWT token
+   * Generate a JWT token (legacy helper — kept for compatibility)
    */
   async generateJWT(user: User) {
-    const payload = {
-      userId: user.id,
-      email: user.email,
-    };
-    return this.jwtService.sign(payload);
+    return this.jwtService.sign({ userId: user.id, role: 'user' });
   }
+
   private generateJwt(userId: string): string {
-    return this.jwtService.sign({ userId });
+    return this.jwtService.sign({ userId, role: 'user' });
   }
 
   async remove(id: string): Promise<{ message: string }> {
@@ -259,13 +287,35 @@ export class UserService {
 
     return { message: `User with ID ${id} has been removed` };
   }
-  async findAll(): Promise<User[]> {
-    return await this.userRepo.find({
-      order: {
-        firstName: 'ASC',
-        lastName: 'ASC',
+  async findAll(paginationDto: PaginationDto) {
+    const { page = 1, limit = 10, search } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const queryOptions: any = {
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: skip,
+    };
+
+    if (search) {
+      queryOptions.where = [
+        { firstName: Like(`%${search}%`) },
+        { lastName: Like(`%${search}%`) },
+        { email: Like(`%${search}%`) },
+      ];
+    }
+
+    const [data, total] = await this.userRepo.findAndCount(queryOptions);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-    });
+    };
   }
   async findOne(id: string): Promise<User> {
     const user = await this.userRepo.findOne({

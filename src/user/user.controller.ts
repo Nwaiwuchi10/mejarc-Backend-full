@@ -13,6 +13,8 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginRequestDto, VerifyLoginTokenDto } from './dto/login.dto';
+import { PaginationDto } from '../utils/pagination.dto';
+import { Query } from '@nestjs/common';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AWS_S3_BUCKET_NAME, s3Client } from 'src/utils/aws-s3.config';
@@ -20,7 +22,7 @@ import { AWS_S3_BUCKET_NAME, s3Client } from 'src/utils/aws-s3.config';
 import * as multerS3 from 'multer-s3';
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Post()
   @UseInterceptors(
@@ -90,8 +92,8 @@ export class UserController {
   }
 
   @Get()
-  findAll() {
-    return this.userService.findAll();
+  findAll(@Query() paginationDto: PaginationDto) {
+    return this.userService.findAll(paginationDto);
   }
 
   @Get(':id')

@@ -17,13 +17,15 @@ import {
   AgentKycStatus,
   AgentRegistrationStatus,
 } from './entities/agent.entity';
-import { AgentProfile } from './entities/agent-profile.entity';
+import { AgentProfile, TITLES_REQUIRING_LICENSE } from './entities/agent-profile.entity';
 import { AgentBio } from './entities/agent-bio.entity';
 import { AgentKyc } from './entities/agent-kyc.entity';
 import { User } from '../user/entities/user.entity';
 import { Admin } from '../admin/entities/admin.entity';
 import { UverifyKycProvider } from './provider/uverify.provider';
 import { AgentMailService } from './service/mail.service';
+import { PaginationDto } from '../utils/pagination.dto';
+import { Like } from 'typeorm';
 
 @Injectable()
 export class AgentService {
@@ -44,7 +46,7 @@ export class AgentService {
     private adminRepo: Repository<Admin>,
     private readonly kycProvider: UverifyKycProvider,
     private readonly mailService: AgentMailService,
-  ) {}
+  ) { }
 
   /**
    * Initialize agent registration - Creates agent record after user signup
@@ -98,6 +100,16 @@ export class AgentService {
       );
     }
 
+    // === Enforce license number for titles that require it ===
+    if (
+      TITLES_REQUIRING_LICENSE.includes(profileDto.preferredTitle as any) &&
+      !profileDto.licenseNumber
+    ) {
+      throw new BadRequestException(
+        `licenseNumber is required for ${profileDto.preferredTitle}`,
+      );
+    }
+
     // create or update profile entity
     let profile = await this.profileRepo.findOne({
       where: { agentId: agent.id },
@@ -107,7 +119,8 @@ export class AgentService {
     }
 
     profile.yearsOfExperience = profileDto.yearsOfExperience;
-    profile.preferredTitle = profileDto.preferredTitle;
+    profile.preferredTitle = profileDto.preferredTitle as any;
+    profile.licenseNumber = profileDto.licenseNumber ?? undefined;
     profile.specialization = profileDto.specialization;
     profile.portfolioLink = profileDto.portfolioLink;
     profile.phoneNumber = profileDto.phoneNumber;
@@ -477,8 +490,37 @@ export class AgentService {
     return this.agentRepo.save(agent);
   }
 
-  findAll() {
-    return this.agentRepo.find({ relations: ['user'] });
+  async findAll(paginationDto: PaginationDto) {
+    const { page = 1, limit = 10, search } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const queryOptions: any = {
+      relations: ['user', 'profile'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: skip,
+    };
+
+    if (search) {
+      queryOptions.where = [
+        { businessName: Like(`%${search}%`) },
+        { user: { firstName: Like(`%${search}%`) } },
+        { user: { lastName: Like(`%${search}%`) } },
+        { user: { email: Like(`%${search}%`) } },
+      ];
+    }
+
+    const [data, total] = await this.agentRepo.findAndCount(queryOptions);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   findOne(id: string) {

@@ -12,6 +12,7 @@ import {
   UploadedFile,
   UploadedFiles,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { AgentService } from './agent.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
@@ -19,6 +20,7 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateAgentProfileDto } from './dto/create-agent-profile.dto';
 import { CreateAgentBioDto } from './dto/create-agent-bio.dto';
 import { CreateAgentKycDto } from './dto/create-agent-kyc.dto';
+import { PaginationDto } from '../utils/pagination.dto';
 
 import {
   FileInterceptor,
@@ -29,7 +31,7 @@ import * as multerS3 from 'multer-s3';
 
 @Controller('agent')
 export class AgentController {
-  constructor(private readonly agentService: AgentService) {}
+  constructor(private readonly agentService: AgentService) { }
 
   /**
    * POST /agent/initialize/:userId
@@ -198,8 +200,8 @@ export class AgentController {
    * Get all agents
    */
   @Get()
-  findAll() {
-    return this.agentService.findAll();
+  findAll(@Query() paginationDto: PaginationDto) {
+    return this.agentService.findAll(paginationDto);
   }
 
   /**

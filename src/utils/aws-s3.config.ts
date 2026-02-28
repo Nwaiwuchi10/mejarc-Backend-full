@@ -1,5 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
-import multerS3 from 'multer-s3';
+import * as multerS3 from 'multer-s3';
 import { memoryStorage } from 'multer';
 import * as dotenv from 'dotenv';
 
@@ -14,12 +14,12 @@ const hasS3Credentials = !!(
 
 export const s3Client = hasS3Credentials
   ? new S3Client({
-      region: process.env.AWS_REGION as string,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
-      },
-    })
+    region: process.env.AWS_REGION as string,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+    },
+  })
   : null;
 
 export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || '';
