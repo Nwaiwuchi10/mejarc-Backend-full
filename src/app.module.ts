@@ -42,9 +42,8 @@ import config from './config/config';
             rejectUnauthorized: false,
           },
         },
-        // entities: [join(process.cwd(), 'src/**/*.entity.{ts,js}')],
-        entities: [join(process.cwd(), 'dist/**/*.entity.js')],
-        synchronize: false, // ⚠️ change this
+        autoLoadEntities: true,
+        synchronize: true, // ⚠️ Changed to true to create missing tables
       }),
       // useFactory: (configService: ConfigService) => ({
       //   type: 'postgres',

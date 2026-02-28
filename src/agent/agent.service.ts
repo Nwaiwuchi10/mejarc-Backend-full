@@ -519,6 +519,7 @@ export class AgentService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        // ...(hasMore !== undefined && { hasMore }) // if we had hasMore logic
       },
     };
   }
