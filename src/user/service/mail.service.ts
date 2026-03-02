@@ -13,11 +13,15 @@ export class MailService {
     this.transporter = nodemailer.createTransport({
       service: process.env.MAIL_SERVICE,
       host: process.env.MAIL_HOST,
-      port: Number(process.env.MAIL_PORT),
+      port:587,
+      // port: Number(process.env.MAIL_PORT),
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
+        tls: {
+    rejectUnauthorized: false,
+  },
     });
   }
 
