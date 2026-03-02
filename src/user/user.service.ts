@@ -31,7 +31,7 @@ export class UserService {
     private readonly agentRepo: Repository<Agent>,
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   async create(dto: CreateUserDto, file?: Express.Multer.File) {
     return this.dataSource.transaction(async (manager) => {
@@ -234,7 +234,7 @@ export class UserService {
     // === Send login success email ===
     try {
       await this.mailService.staffLoginMail(updatedUser);
-    } catch (_) { }
+    } catch (_) {}
 
     // === Return safe user data (without password) ===
     const { password, ...userDataWithoutPassword } = updatedUser;
@@ -248,16 +248,17 @@ export class UserService {
     // Also issue agent token if user has an agent record
     const agentToken = isAgent
       ? this.jwtService.sign({
-        userId: updatedUser.id,
-        agentId: agentRecord!.id,
-        role: 'agent',
-      })
+          userId: updatedUser.id,
+          agentId: agentRecord!.id,
+          role: 'agent',
+        })
       : undefined;
 
     return {
       success: true,
       message: 'Login successful',
       isAgent,
+      userId: updatedUser.id,
       role: isAgent ? 'agent' : 'user',
       user: userDataWithoutPassword,
       userToken,

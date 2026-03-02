@@ -17,7 +17,10 @@ import {
   AgentKycStatus,
   AgentRegistrationStatus,
 } from './entities/agent.entity';
-import { AgentProfile, TITLES_REQUIRING_LICENSE } from './entities/agent-profile.entity';
+import {
+  AgentProfile,
+  TITLES_REQUIRING_LICENSE,
+} from './entities/agent-profile.entity';
 import { AgentBio } from './entities/agent-bio.entity';
 import { AgentKyc } from './entities/agent-kyc.entity';
 import { User } from '../user/entities/user.entity';
@@ -46,7 +49,7 @@ export class AgentService {
     private adminRepo: Repository<Admin>,
     private readonly kycProvider: UverifyKycProvider,
     private readonly mailService: AgentMailService,
-  ) { }
+  ) {}
 
   /**
    * Initialize agent registration - Creates agent record after user signup
@@ -78,10 +81,21 @@ export class AgentService {
     profileDto: CreateAgentProfileDto,
     file?: Express.Multer.File,
   ) {
+    // remove any stray agent_kyc rows with null agentId before we begin
+    await this.kycRepo
+      .createQueryBuilder()
+      .delete()
+      .from(AgentKyc)
+      .where('"agentId" IS NULL')
+      .execute();
+
     let agent = await this.agentRepo.findOne({
       where: { userId },
       relations: ['user'],
     });
+    if (agent && !agent.id) {
+      throw new BadRequestException('Invalid agent record (missing id)');
+    }
 
     if (!agent) {
       throw new NotFoundException(
@@ -149,7 +163,16 @@ export class AgentService {
 
     // Move to bio step
     agent.registrationStatus = AgentRegistrationStatus.BIO_PENDING;
-    return this.agentRepo.save(agent);
+    // avoid cascading existing kycRecords which may contain bad rows
+    // (save only the status fields)
+    await this.agentRepo.update(agent.id, {
+      registrationStatus: agent.registrationStatus,
+    });
+    // return the fresh agent entity for callers
+    return this.agentRepo.findOne({
+      where: { id: agent.id },
+      relations: ['user'],
+    });
   }
 
   /**
@@ -157,7 +180,9 @@ export class AgentService {
    */
   async submitBio(agentId: string, bioDto: CreateAgentBioDto) {
     const agent = await this.agentRepo.findOne({ where: { id: agentId } });
-
+    if (agent && !agent.id) {
+      throw new BadRequestException('Invalid agent record (missing id)');
+    }
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
@@ -176,7 +201,14 @@ export class AgentService {
     await this.bioRepo.save(bio);
 
     agent.registrationStatus = AgentRegistrationStatus.KYC_PENDING;
-    return this.agentRepo.save(agent);
+    // update without cascading kyc records
+    await this.agentRepo.update(agent.id, {
+      registrationStatus: agent.registrationStatus,
+    });
+    return this.agentRepo.findOne({
+      where: { id: agent.id },
+      relations: ['user'],
+    });
   }
 
   /**
@@ -191,6 +223,9 @@ export class AgentService {
     },
   ) {
     const agent = await this.agentRepo.findOne({ where: { id: agentId } });
+    if (agent && !agent.id) {
+      throw new BadRequestException('Invalid agent record (missing id)');
+    }
 
     if (!agent) {
       throw new NotFoundException('Agent not found');
@@ -216,6 +251,15 @@ export class AgentService {
     // === Handle file uploads (S3) ===
     let idDocumentUrl: string | undefined;
     let architectCertUrl: string | undefined;
+
+    // clean up any orphaned kyc records that slipped through earlier
+    // (they cause cascade save failures because agentId is null)
+    await this.kycRepo
+      .createQueryBuilder()
+      .delete()
+      .from(AgentKyc)
+      .where('"agentId" IS NULL')
+      .execute();
 
     if (files?.idDocument && files.idDocument.length > 0) {
       const uploadedFile = files.idDocument[0] as Express.Multer.File & {
@@ -290,7 +334,20 @@ export class AgentService {
     agent.registrationStatus = AgentRegistrationStatus.AWAITING_APPROVAL;
     agent.kycStatus = AgentKycStatus.PENDING;
 
-    const savedAgent = await this.agentRepo.save(agent);
+    // avoid cascade issues by only updating the status fields
+    await this.agentRepo.update(agent.id, {
+      registrationStatus: agent.registrationStatus,
+      kycStatus: agent.kycStatus,
+    });
+
+    const savedAgent = await this.agentRepo.findOne({
+      where: { id: agent.id },
+      relations: ['user'],
+    });
+    if (!savedAgent) {
+      // this should not happen since we just updated the agent
+      throw new BadRequestException('Failed to load agent after KYC save');
+    }
 
     // Reload agent with user relation to ensure user is populated
     const agentWithUser = await this.agentRepo.findOne({

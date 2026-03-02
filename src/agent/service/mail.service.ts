@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as dotenv from 'dotenv';
 import { User } from '../../user/entities/user.entity';
 import { Agent } from '../entities/agent.entity';
+import * as SibApiV3Sdk from 'sib-api-v3-sdk';
 
 dotenv.config();
 
@@ -10,24 +11,42 @@ dotenv.config();
 export class AgentMailService {
   private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(AgentMailService.name);
+  private brevoClient: SibApiV3Sdk.TransactionalEmailsApi;
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      service: process.env.MAIL_SERVICE,
-      host: process.env.MAIL_HOST,
-      port: Number(process.env.MAIL_PORT),
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
+    const defaultClient = SibApiV3Sdk.ApiClient.instance;
+    const apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = process.env.BREVO_API_KEY;
+
+    this.brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
   }
+  // constructor() {
+  //   this.transporter = nodemailer.createTransport({
+  //     service: process.env.MAIL_SERVICE,
+  //     host: process.env.MAIL_HOST,
+  //     port: Number(process.env.MAIL_PORT),
+  //     auth: {
+  //       user: process.env.MAIL_USER,
+  //       pass: process.env.MAIL_PASS,
+  //     },
+  //   });
+  // }
 
   async sendKycUploadedNotification(adminUser: User, agent: Agent) {
     try {
       const mailOptions = {
-        from: `"KYC Notifications" <${process.env.MAIL_USER}>`,
-        to: adminUser.email,
+        // from: `"KYC Notifications" <${process.env.MAIL_USER}>`,
+        // to: adminUser.email,
+        sender: {
+          name: 'KYC Notifications',
+          email: process.env.MAIL_FROM,
+        },
+        to: [
+          {
+            email: adminUser.email,
+            name: adminUser.firstName,
+          },
+        ],
         subject: `New KYC uploaded for agent ${agent.id}`,
         html: this.buildTemplate({
           title: `New KYC Uploaded`,
@@ -54,8 +73,18 @@ export class AgentMailService {
     try {
       const status = approved ? 'approved' : 'rejected';
       const mailOptions = {
-        from: `"Support Team" <${process.env.MAIL_USER}>`,
-        to: agentUser.email,
+        // from: `"Support Team" <${process.env.MAIL_USER}>`,
+        // to: agentUser.email,
+        sender: {
+          name: 'KYC Notifications',
+          email: process.env.MAIL_FROM,
+        },
+        to: [
+          {
+            email: agentUser.email,
+            name: agentUser.firstName,
+          },
+        ],
         subject: `Your agent account has been ${status}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width:700px; margin:0 auto; padding:20px; background:#fff; border-radius:8px;">
@@ -84,8 +113,18 @@ export class AgentMailService {
   ) {
     try {
       const mailOptions = {
-        from: `"Registration Team" <${process.env.MAIL_USER}>`,
-        to: agentUser.email,
+        // from: `"Registration Team" <${process.env.MAIL_USER}>`,
+        // to: agentUser.email,
+        sender: {
+          name: 'Registration Team',
+          email: process.env.MAIL_FROM,
+        },
+        to: [
+          {
+            email: agentUser.email,
+            name: agentUser.firstName,
+          },
+        ],
         subject: `Agent Registration Requires Additional Information`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 25px; background-color: #f9fafb; border-radius: 12px;">
@@ -121,8 +160,18 @@ export class AgentMailService {
   ) {
     try {
       const mailOptions = {
-        from: `"Registration Team" <${process.env.MAIL_USER}>`,
-        to: agentUser.email,
+        // from: `"Registration Team" <${process.env.MAIL_USER}>`,
+        // to: agentUser.email,
+        sender: {
+          name: 'Registration Team',
+          email: process.env.MAIL_FROM,
+        },
+        to: [
+          {
+            email: agentUser.email,
+            name: agentUser.firstName,
+          },
+        ],
         subject: `📋 Agent Registration Submitted for Review`,
         html: this.buildTemplate({
           title: `✅ Registration Submitted`,
