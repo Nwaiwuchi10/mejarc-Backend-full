@@ -48,7 +48,7 @@ export class MarketProductMailService {
           },
         ],
         subject: `📦 Product Listing Submitted: ${product.title}`,
-        html: this.buildTemplate({
+        htmlContent: this.buildTemplate({
           title: `Product Submitted for Review`,
           subtitle: `Your product "${product.title}" has been successfully uploaded and is awaiting admin approval.`,
           user: agentUser,
@@ -57,7 +57,7 @@ export class MarketProductMailService {
         }),
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
       this.logger.warn(
         'Failed to send product submitted notification',

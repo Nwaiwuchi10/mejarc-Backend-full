@@ -48,7 +48,7 @@ export class AgentMailService {
           },
         ],
         subject: `New KYC uploaded for agent ${agent.id}`,
-        html: this.buildTemplate({
+        htmlContent: this.buildTemplate({
           title: `New KYC Uploaded`,
           subtitle: `Agent ${agent.businessName || agent.userId} uploaded KYC documents.`,
           user: adminUser,
@@ -56,7 +56,7 @@ export class AgentMailService {
         }),
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
       this.logger.warn(
         'Failed to send KYC uploaded notification',
@@ -86,7 +86,7 @@ export class AgentMailService {
           },
         ],
         subject: `Your agent account has been ${status}`,
-        html: `
+        htmlContent: `
           <div style="font-family: Arial, sans-serif; max-width:700px; margin:0 auto; padding:20px; background:#fff; border-radius:8px;">
             <h2>${approved ? 'Congratulations!' : 'Update on your application'}</h2>
             <p>Hi ${agentUser.firstName},</p>
@@ -97,7 +97,7 @@ export class AgentMailService {
         `,
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
       this.logger.warn(
         'Failed to send agent approval notification',
@@ -126,7 +126,7 @@ export class AgentMailService {
           },
         ],
         subject: `Agent Registration Requires Additional Information`,
-        html: `
+        htmlContent: `
           <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 25px; background-color: #f9fafb; border-radius: 12px;">
             <div style="text-align: center; margin-bottom: 25px;">
               <h1 style="color: #dc2626; font-size: 24px; margin: 0;">⚠️ Application Review</h1>
@@ -145,7 +145,7 @@ export class AgentMailService {
         `,
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
       this.logger.warn(
         'Failed to send agent rejection notification',
@@ -173,7 +173,7 @@ export class AgentMailService {
           },
         ],
         subject: `📋 Agent Registration Submitted for Review`,
-        html: this.buildTemplate({
+        htmlContent: this.buildTemplate({
           title: `✅ Registration Submitted`,
           subtitle: `Your application is being reviewed`,
           user: agentUser,
@@ -181,7 +181,7 @@ export class AgentMailService {
         }),
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
       this.logger.warn(
         'Failed to send registration submitted notification',

@@ -84,14 +84,14 @@ export class MarketProduct {
     addOns?: string[]; // e.g. ["Construction Plans", "MEP Drawings"]
 
     // S3 URLs
-    @Column({ nullable: true })
-    productImage?: string;
+    @Column({ type: 'simple-array', nullable: true })
+    productImage?: string[];
 
-    @Column({ nullable: true })
-    architecturalPlan?: string;
+    @Column({ type: 'simple-array', nullable: true })
+    architecturalPlan?: string[];
 
-    @Column({ nullable: true })
-    structuralPlan?: string;
+    @Column({ type: 'simple-array', nullable: true })
+    structuralPlan?: string[];
 
     @Column({
         type: 'enum',

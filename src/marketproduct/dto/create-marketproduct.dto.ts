@@ -6,6 +6,7 @@ import {
     IsArray,
     IsDecimal,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
     ProductCategory,
     PlanType,
@@ -35,6 +36,7 @@ export class CreateMarketproductDto {
     numFloors?: string;
 
     @IsNumber()
+    @Type(() => Number)
     price: number;
 
     @IsString()
@@ -52,4 +54,19 @@ export class CreateMarketproductDto {
     @IsString({ each: true })
     @IsOptional()
     addOns?: string[];
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    productImage?: string[];
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    architecturalPlan?: string[];
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    structuralPlan?: string[];
 }

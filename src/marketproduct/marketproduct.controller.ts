@@ -35,9 +35,9 @@ export class MarketproductController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'productImage', maxCount: 1 },
-        { name: 'architecturalPlan', maxCount: 1 },
-        { name: 'structuralPlan', maxCount: 1 },
+        { name: 'productImage', maxCount: 10 },
+        { name: 'architecturalPlan', maxCount: 10 },
+        { name: 'structuralPlan', maxCount: 10 },
       ],
       {
         storage: createS3Storage('market-products'),
@@ -64,6 +64,14 @@ export class MarketproductController {
     return this.marketproductService.findAll(paginationDto);
   }
 
+  @Get('agent/:agentId')
+  findAllByAgent(
+    @Param('agentId') agentId: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.marketproductService.findAllByAgent(agentId, paginationDto);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.marketproductService.findOne(id);
@@ -71,11 +79,30 @@ export class MarketproductController {
 
   @UseGuards(AgentAuthGuard)
   @Patch(':id')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'productImage', maxCount: 10 },
+        { name: 'architecturalPlan', maxCount: 10 },
+        { name: 'structuralPlan', maxCount: 10 },
+      ],
+      {
+        storage: createS3Storage('market-products'),
+        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
+      },
+    ),
+  )
   update(
     @Param('id') id: string,
     @Body() updateMarketproductDto: UpdateMarketproductDto,
+    @UploadedFiles()
+    files?: {
+      productImage?: Express.Multer.File[];
+      architecturalPlan?: Express.Multer.File[];
+      structuralPlan?: Express.Multer.File[];
+    },
   ) {
-    return this.marketproductService.update(id, updateMarketproductDto);
+    return this.marketproductService.update(id, updateMarketproductDto, files);
   }
 
   @UseGuards(AgentAuthGuard)
