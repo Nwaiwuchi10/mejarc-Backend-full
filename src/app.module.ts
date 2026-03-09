@@ -10,6 +10,8 @@ import { UserModule } from './user/user.module';
 import { AgentModule } from './agent/agent.module';
 import { AdminModule } from './admin/admin.module';
 import { MarketproductModule } from './marketproduct/marketproduct.module';
+import { OrderModule } from './order/order.module';
+import { WalletModule } from './wallet/wallet.module';
 import config from './config/config';
 
 @Module({
@@ -65,6 +67,8 @@ import config from './config/config';
     AgentModule,
     AdminModule,
     MarketproductModule,
+    OrderModule,
+    WalletModule,
     // RolesModule,
   ],
   controllers: [AppController],

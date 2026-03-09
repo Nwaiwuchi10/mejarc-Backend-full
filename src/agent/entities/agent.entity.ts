@@ -14,6 +14,7 @@ import {
 import { AgentProfile } from './agent-profile.entity';
 import { AgentBio } from './agent-bio.entity';
 import { AgentKyc } from './agent-kyc.entity';
+import { Wallet } from '../../wallet/entities/wallet.entity';
 
 export enum AgentKycStatus {
   PENDING = 'PENDING',
@@ -51,6 +52,9 @@ export class Agent {
 
   @OneToMany(() => AgentKyc, (k) => k.agent, { cascade: true, eager: true })
   kycRecords?: AgentKyc[];
+
+  @OneToOne(() => Wallet, (wallet) => wallet.agent, { cascade: true })
+  wallet?: Wallet;
 
   // ===== LEGACY/BUSINESS FIELDS =====
   @Column({ nullable: true })

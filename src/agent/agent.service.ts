@@ -23,6 +23,7 @@ import {
 } from './entities/agent-profile.entity';
 import { AgentBio } from './entities/agent-bio.entity';
 import { AgentKyc } from './entities/agent-kyc.entity';
+import { Wallet } from '../wallet/entities/wallet.entity';
 import { User } from '../user/entities/user.entity';
 import { Admin } from '../admin/entities/admin.entity';
 import { UverifyKycProvider } from './provider/uverify.provider';
@@ -49,7 +50,7 @@ export class AgentService {
     private adminRepo: Repository<Admin>,
     private readonly kycProvider: UverifyKycProvider,
     private readonly mailService: AgentMailService,
-  ) {}
+  ) { }
 
   /**
    * Initialize agent registration - Creates agent record after user signup
@@ -64,10 +65,12 @@ export class AgentService {
       throw new ConflictException('Agent profile already exists for this user');
     }
 
+    const wallet = new Wallet();
     const agent = this.agentRepo.create({
       user,
       userId,
       registrationStatus: AgentRegistrationStatus.PROFILE_PENDING,
+      wallet,
     });
 
     return this.agentRepo.save(agent);
@@ -543,7 +546,8 @@ export class AgentService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    const agent = this.agentRepo.create({ ...dto, user, userId });
+    const wallet = new Wallet();
+    const agent = this.agentRepo.create({ ...dto, user, userId, wallet });
     return this.agentRepo.save(agent);
   }
 
