@@ -15,7 +15,9 @@ import {
 import { MarketproductService } from './marketproduct.service';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
+import { RateProductDto } from './dto/rate-product.dto';
 import { AgentAuthGuard } from '../agent/guards/agent-auth.guard';
+import { UserAuthGuard } from '../user/guard/user.guard';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { createS3Storage } from '../utils/aws-s3.config';
 import { PaginationDto } from '../utils/pagination.dto';
@@ -109,5 +111,16 @@ export class MarketproductController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.marketproductService.remove(id);
+  }
+
+  @UseGuards(UserAuthGuard)
+  @Post(':id/rate')
+  rate(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() dto: RateProductDto,
+  ) {
+    const userId = req.userId;
+    return this.marketproductService.rateProduct(userId, id, dto);
   }
 }

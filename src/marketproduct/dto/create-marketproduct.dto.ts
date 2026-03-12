@@ -11,6 +11,7 @@ import {
     ProductCategory,
     PlanType,
     FileTypeOption,
+    MarketProductStatus,
 } from '../entities/marketproduct.entity';
 
 export class CreateMarketproductDto {
@@ -69,4 +70,8 @@ export class CreateMarketproductDto {
     @IsString({ each: true })
     @IsOptional()
     structuralPlan?: string[];
+
+    @IsEnum(MarketProductStatus)
+    @IsOptional()
+    status?: MarketProductStatus;
 }

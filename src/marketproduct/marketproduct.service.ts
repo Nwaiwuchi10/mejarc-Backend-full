@@ -8,7 +8,9 @@ import { Repository, Like } from 'typeorm';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
 import { MarketProduct } from './entities/marketproduct.entity';
+import { Rating } from './entities/rating.entity';
 import { Agent } from '../agent/entities/agent.entity';
+import { RateProductDto } from './dto/rate-product.dto';
 import { MarketProductMailService } from './service/mail.service';
 import { PaginationDto } from '../utils/pagination.dto';
 
@@ -19,6 +21,8 @@ export class MarketproductService {
     private readonly productRepo: Repository<MarketProduct>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(Rating)
+    private readonly ratingRepo: Repository<Rating>,
     private readonly mailService: MarketProductMailService,
   ) { }
 
@@ -159,8 +163,11 @@ export class MarketproductService {
     },
   ) {
     const product = await this.findOne(id);
+    
+    // 1. Apply DTO updates first
+    Object.assign(product, updateMarketproductDto);
 
-    // Map new S3 URLs if provided
+    // 2. Map new S3 URLs if provided (overrides DTO values if both present)
     if (files?.productImage?.length) {
       product.productImage = files.productImage.map((f: any) => f.location);
     }
@@ -171,7 +178,6 @@ export class MarketproductService {
       product.structuralPlan = files.structuralPlan.map((f: any) => f.location);
     }
 
-    Object.assign(product, updateMarketproductDto);
     return this.productRepo.save(product);
   }
 
@@ -179,5 +185,39 @@ export class MarketproductService {
     const product = await this.findOne(id);
     await this.productRepo.remove(product);
     return { success: true, message: 'Product deleted' };
+  }
+
+  async rateProduct(userId: string, productId: string, dto: RateProductDto) {
+    const product = await this.findOne(productId);
+
+    let rating = await this.ratingRepo.findOne({
+      where: { userId, productId },
+    });
+
+    if (rating) {
+      rating.rating = dto.rating;
+      rating.comment = dto.comment;
+    } else {
+      rating = this.ratingRepo.create({
+        userId,
+        productId,
+        ...dto,
+      });
+    }
+
+    await this.ratingRepo.save(rating);
+
+    // Update product average rating and count
+    const [ratings, count] = await this.ratingRepo.findAndCount({
+      where: { productId },
+    });
+
+    const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
+    product.averageRating = count > 0 ? totalRating / count : 0;
+    product.ratingCount = count;
+
+    await this.productRepo.save(product);
+
+    return rating;
   }
 }

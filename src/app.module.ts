@@ -33,35 +33,35 @@ import config from './config/config';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
-        ssl: {
-          rejectUnauthorized: false,
-        },
-        extra: {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        },
-        autoLoadEntities: true,
-        synchronize: true, // ⚠️ Changed to true to create missing tables
-      }),
       // useFactory: (configService: ConfigService) => ({
       //   type: 'postgres',
-      //   host: configService.get('DB_HOST'),
-      //   port: +configService.get('DB_PORT'),
-      //   username: configService.get('DB_USERNAME'),
-      //   password: configService.get('DB_PASSWORD'),
-      //   database: configService.get('DB_NAME'),
-      //   ssl:
-      //     configService.get('DB_SSL') === 'true'
-      //       ? { rejectUnauthorized: false }
-      //       : undefined,
-      //   entities: [join(process.cwd(), 'dist/**/*.entity.js')],
-
-      //   synchronize: true,
+      //   url: configService.get<string>('DATABASE_URL'),
+      //   ssl: {
+      //     rejectUnauthorized: false,
+      //   },
+      //   extra: {
+      //     ssl: {
+      //       rejectUnauthorized: false,
+      //     },
+      //   },
+      //   autoLoadEntities: true,
+      //   synchronize: true, // ⚠️ Changed to true to create missing tables
       // }),
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: +configService.get('DB_PORT'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        ssl:
+          configService.get('DB_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : undefined,
+        entities: [join(process.cwd(), 'dist/**/*.entity.js')],
+
+        synchronize: true,
+      }),
     }),
     UserModule,
     AgentModule,

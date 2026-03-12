@@ -6,8 +6,10 @@ import {
     JoinColumn,
     CreateDateColumn,
     UpdateDateColumn,
+    OneToMany,
 } from 'typeorm';
 import { Agent } from '../../agent/entities/agent.entity';
+import { Rating } from './rating.entity';
 
 export enum ProductCategory {
     BUILDING_PLAN = 'Building Plan',
@@ -93,12 +95,16 @@ export class MarketProduct {
     @Column({ type: 'simple-array', nullable: true })
     structuralPlan?: string[];
 
-    @Column({
-        type: 'enum',
-        enum: MarketProductStatus,
-        default: MarketProductStatus.PENDING_REVIEW,
-    })
     status: MarketProductStatus;
+
+    @OneToMany(() => Rating, (rating) => rating.product)
+    ratings: Rating[];
+
+    @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
+    averageRating: number;
+
+    @Column({ type: 'int', default: 0 })
+    ratingCount: number;
 
     @ManyToOne(() => Agent, { nullable: false, onDelete: 'CASCADE' })
     @JoinColumn({ name: 'agentId' })
