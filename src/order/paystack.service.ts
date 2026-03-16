@@ -40,17 +40,17 @@ export class PaystackService {
 
       //  Keep your existing metadata
       const metadata = {
-        app_name: 'adsng',
+        app_name: 'Mejarc',
         custom_fields: [
           {
             display_name: 'App Name',
             variable_name: 'app_name',
-            value: 'AdsNG',
+            value: 'Mejarc',
           },
           {
             display_name: 'App Name',
             variable_name: 'app_name',
-            value: 'AdsNG',
+            value: 'Mejarc',
           },
         ],
       };
