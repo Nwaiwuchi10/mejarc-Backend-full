@@ -21,6 +21,7 @@ import { UserAuthGuard } from '../user/guard/user.guard';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { createS3Storage } from '../utils/aws-s3.config';
 import { PaginationDto } from '../utils/pagination.dto';
+import { MarketProductFilterDto } from './dto/marketproduct-filter.dto';
 
 @Controller('marketproduct')
 export class MarketproductController {
@@ -62,16 +63,16 @@ export class MarketproductController {
   }
 
   @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.marketproductService.findAll(paginationDto);
+  findAll(@Query() filterDto: MarketProductFilterDto) {
+    return this.marketproductService.findAll(filterDto);
   }
 
   @Get('agent/:agentId')
   findAllByAgent(
     @Param('agentId') agentId: string,
-    @Query() paginationDto: PaginationDto,
+    @Query() filterDto: MarketProductFilterDto,
   ) {
-    return this.marketproductService.findAllByAgent(agentId, paginationDto);
+    return this.marketproductService.findAllByAgent(agentId, filterDto);
   }
 
   @Get(':id')

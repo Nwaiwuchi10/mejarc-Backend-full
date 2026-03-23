@@ -77,7 +77,10 @@ export class CreateOrderDto {
   orderItems: OrderItemDTO[];
 
   @IsOptional()
-  pricingPlan?: string;
+  @IsNumber()
+  amountPaid?: number
+
+
 
   @IsOptional()
   @IsString()

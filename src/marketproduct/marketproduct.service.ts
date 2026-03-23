@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, Between } from 'typeorm';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
 import { MarketProduct } from './entities/marketproduct.entity';
@@ -12,7 +12,7 @@ import { Rating } from './entities/rating.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { RateProductDto } from './dto/rate-product.dto';
 import { MarketProductMailService } from './service/mail.service';
-import { PaginationDto } from '../utils/pagination.dto';
+import { MarketProductFilterDto } from './dto/marketproduct-filter.dto';
 
 @Injectable()
 export class MarketproductService {
@@ -73,8 +73,8 @@ export class MarketproductService {
     return savedProduct;
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { page = 1, limit = 10, search } = paginationDto;
+  async findAll(filterDto: MarketProductFilterDto) {
+    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice } = filterDto;
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
@@ -84,13 +84,36 @@ export class MarketproductService {
       skip: skip,
     };
 
+    const filters: any = {};
+    if (planType) filters.planType = planType;
+    if (category) filters.category = category;
+    if (numBedrooms) filters.numBedrooms = numBedrooms;
+    if (numBathrooms) filters.numBathrooms = numBathrooms;
+    if (numFloors) filters.numFloors = numFloors;
+    if (area) filters.area = area;
+    if (designStyle) filters.designStyle = designStyle;
+
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      filters.price = Between(minPrice, maxPrice);
+    } else if (minPrice !== undefined) {
+      filters.price = Between(minPrice, 999999999);
+    } else if (maxPrice !== undefined) {
+      filters.price = Between(0, maxPrice);
+    }
+
+    if (buildingGuides) {
+      filters.addOns = Like(`%${buildingGuides}%`);
+    }
+
     if (search) {
       queryOptions.where = [
-        { title: Like(`%${search}%`) },
-        { description: Like(`%${search}%`) },
-        { category: Like(`%${search}%`) },
-        { planType: Like(`%${search}%`) },
+        { ...filters, title: Like(`%${search}%`) },
+        { ...filters, description: Like(`%${search}%`) },
+        { ...filters, category: Like(`%${search}%`) },
+        { ...filters, planType: Like(`%${search}%`) },
       ];
+    } else {
+      queryOptions.where = filters;
     }
 
     const [data, total] = await this.productRepo.findAndCount(queryOptions);
@@ -106,25 +129,47 @@ export class MarketproductService {
     };
   }
 
-  async findAllByAgent(agentId: string, paginationDto: PaginationDto) {
-    const { page = 1, limit = 10, search } = paginationDto;
+  async findAllByAgent(agentId: string, filterDto: MarketProductFilterDto) {
+    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice } = filterDto;
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
-      where: { agentId },
       relations: ['agent', 'agent.user', 'agent.profile'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip: skip,
     };
 
+    const filters: any = { agentId };
+    if (planType) filters.planType = planType;
+    if (category) filters.category = category;
+    if (numBedrooms) filters.numBedrooms = numBedrooms;
+    if (numBathrooms) filters.numBathrooms = numBathrooms;
+    if (numFloors) filters.numFloors = numFloors;
+    if (area) filters.area = area;
+    if (designStyle) filters.designStyle = designStyle;
+
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      filters.price = Between(minPrice, maxPrice);
+    } else if (minPrice !== undefined) {
+      filters.price = Between(minPrice, 999999999);
+    } else if (maxPrice !== undefined) {
+      filters.price = Between(0, maxPrice);
+    }
+
+    if (buildingGuides) {
+      filters.addOns = Like(`%${buildingGuides}%`);
+    }
+
     if (search) {
       queryOptions.where = [
-        { agentId, title: Like(`%${search}%`) },
-        { agentId, description: Like(`%${search}%`) },
-        { agentId, category: Like(`%${search}%`) },
-        { agentId, planType: Like(`%${search}%`) },
+        { ...filters, title: Like(`%${search}%`) },
+        { ...filters, description: Like(`%${search}%`) },
+        { ...filters, category: Like(`%${search}%`) },
+        { ...filters, planType: Like(`%${search}%`) },
       ];
+    } else {
+      queryOptions.where = filters;
     }
 
     const [data, total] = await this.productRepo.findAndCount(queryOptions);
@@ -163,7 +208,7 @@ export class MarketproductService {
     },
   ) {
     const product = await this.findOne(id);
-    
+
     // 1. Apply DTO updates first
     Object.assign(product, updateMarketproductDto);
 

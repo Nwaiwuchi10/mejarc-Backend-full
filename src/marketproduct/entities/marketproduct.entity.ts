@@ -72,6 +72,12 @@ export class MarketProduct {
     @Column({ type: 'text' })
     description: string;
 
+    @Column({ nullable: true })
+    area?: string;
+
+    @Column({ nullable: true })
+    designStyle?: string;
+
     @Column({
         type: 'enum',
         enum: FileTypeOption,

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, Param } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { WithdrawDto } from './dto/withdraw.dto';
 import { UserAuthGuard } from '../user/guard/user.guard';
@@ -8,9 +8,12 @@ import { UserAuthGuard } from '../user/guard/user.guard';
 export class WalletController {
   constructor(private readonly walletService: WalletService) { }
 
-  @Get('overview')
-  getOverview(@Req() req) {
-    const userId = req.userId;
+  @Get('overview/:userId')
+  getOverview(
+    @Param('userId') userId: string
+    // @Req() req,
+  ) {
+    // const userId = req.userId;
     return this.walletService.getOverview(userId);
   }
 

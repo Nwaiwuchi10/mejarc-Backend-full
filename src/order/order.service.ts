@@ -100,6 +100,7 @@ export class OrderService {
       userId: userId || undefined,
       orderItems: validatedOrderItems,
       grandTotal,
+
       redirect_url,
       billingInfo,
       payStackPayment: {
@@ -159,7 +160,7 @@ export class OrderService {
       if (data.status !== 'success') throw new BadRequestException('Payment verification failed.');
 
       const order = await this.orderRepository.createQueryBuilder('order')
-        .where(`order.payStackPayment->>'reference' = :reference`, { reference })
+        .where(`"order"."payStackPayment"->>'reference' = :reference`, { reference })
         .getOne();
 
       if (!order) throw new BadRequestException(`Order with reference ${reference} not found.`);
@@ -213,7 +214,7 @@ export class OrderService {
 
       const orderDetails = await this.orderRepository.findOne({
         where: { id: order.id },
-        relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.wallet'],
+        relations: ['user'],
       });
 
       // Handle payment splitting for agent products if we have orderItems
@@ -320,7 +321,13 @@ export class OrderService {
         userId: order?.userId,
       };
     } catch (error) {
-      throw new BadRequestException(error.response?.data?.message || 'Error verifying payment, User did not complete transaction');
+      throw new BadRequestException({
+        message: 'System error: ' + error.message,
+        originalError: error.toString(),
+        stack: error.stack,
+        isNestException: error instanceof BadRequestException,
+        errorResponse: error.response
+      });
     }
   }
 
@@ -330,7 +337,7 @@ export class OrderService {
 
     const reference = data.reference;
     const order = await this.orderRepository.createQueryBuilder('order')
-      .where(`order.payStackPayment->>'reference' = :reference`, { reference })
+      .where(`"order"."payStackPayment"->>'reference' = :reference`, { reference })
       .getOne();
 
     if (!order || order.isPaid) return;
@@ -366,7 +373,7 @@ export class OrderService {
   async findOrderDetails(id: string) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
     if (!order) throw new BadRequestException(`Order with ${id} not found`);
 
@@ -383,7 +390,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
   }
 
@@ -397,7 +404,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
   }
 
@@ -411,7 +418,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
   }
 
@@ -425,7 +432,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
   }
 
@@ -439,7 +446,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
   }
 
@@ -453,7 +460,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
   }
 
@@ -462,13 +469,13 @@ export class OrderService {
   }
 
   findAll() {
-    return this.orderRepository.find({ relations: ['user', 'orderItems', 'orderItems.product'] });
+    return this.orderRepository.find({ relations: ['user'] });
   }
 
   async findOne(id: string) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user'],
     });
     if (!order) throw new BadRequestException(`Order with ${id} not found`);
     return { order };

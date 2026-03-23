@@ -36,7 +36,7 @@ export class OrderController {
   ) { }
 
   // @UseGuards(UserAuthGuard)
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(UserAuthGuard)
   @Post('/initialize')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async createOrder(@Body() createOrderDTO: CreateOrderDto, @Req() req) {
