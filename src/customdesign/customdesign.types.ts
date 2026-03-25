@@ -6,6 +6,7 @@
 export enum ServiceType {
   LANDSCAPE_DESIGN = 'landscape-design',
   INTERIOR_DESIGN = 'interior-design',
+  PRODUCT_DESIGN = 'product-design',
   RENDERING_3D = '3d-rendering',
   ARCHITECTURAL_2D = '2d-architectural',
   BIM = 'building-information-modeling',
@@ -28,19 +29,16 @@ export enum CustomDesignStatus {
   COMPLETED = 'completed',
 }
 
-// Service Context Options
 export interface ServiceContextOption {
   title: string;
   description: string;
 }
 
-// Project Type Options
 export interface ProjectTypeOption {
   title: string;
   description: string;
 }
 
-// Scope & Deliverables
 export interface ScopePackage {
   title: string;
   description: string;
@@ -51,19 +49,16 @@ export interface ScopeAddon {
   description: string;
 }
 
-// Size/Complexity Options
 export interface SizeOption {
   title: string;
   description: string;
 }
 
-// Style Options
 export interface StyleOption {
   title: string;
   description: string;
 }
 
-// Service-specific configuration structure
 export interface ServiceConfig {
   serviceType: ServiceType;
   serviceName: string;

@@ -1,6 +1,10 @@
 /**
  * Custom Design Entity
- * Database model for storing custom design submissions
+ * Database model aligned with the 6-step frontend wizard flow
+ *
+ * Frontend state shape:
+ *   { serviceContext, projectType, scopeDeliverables[], sizeComplexity,
+ *     style, budget, timeline, attachedFiles[] }
  */
 
 import {
@@ -10,7 +14,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
@@ -26,7 +29,8 @@ export class CustomDesign {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // User who created the custom design
+  // ----- Ownership -----
+
   @Column('uuid')
   userId: string;
 
@@ -34,7 +38,6 @@ export class CustomDesign {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  // Agent associated (if created through agent)
   @Column('uuid', { nullable: true })
   agentId?: string;
 
@@ -42,94 +45,100 @@ export class CustomDesign {
   @JoinColumn({ name: 'agentId' })
   agent?: Agent;
 
-  // Step 1: Service Context
-  @Column('enum', { enum: ServiceType })
+  // ----- Step 1: Service Context -----
+
+  @Column({ type: 'enum', enum: ServiceType })
   serviceType: ServiceType;
 
-  @Column('varchar', { length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   serviceContext: string;
 
-  // Step 2: Project Type
-  @Column('varchar', { length: 255 })
-  projectType: string;
+  // ----- Step 2: Project Type -----
 
-  // Step 3: Scope & Deliverables
-  @Column('varchar', { length: 255 })
-  scopeDeliverable: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  projectType?: string;
 
-  @Column('simple-array', { nullable: true })
-  addons: string[];
+  // ----- Step 3: Scope & Deliverables -----
+  // Single array holding both the base package title AND any selected add-on
+  // titles, matching the frontend's scopeDeliverables[] state field exactly.
 
-  // Step 4: Size / Complexity
-  @Column('varchar', { length: 255 })
-  sizeComplexity: string;
+  @Column({ type: 'simple-array', nullable: true })
+  scopeDeliverables?: string[];
 
-  // Step 5: Style / Standards / Regulations
-  @Column('varchar', { length: 255 })
-  style: string;
+  // ----- Step 4: Size / Complexity -----
 
-  // Step 6: Budget & Timeline
-  @Column('bigint')
-  budget: number;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  sizeComplexity?: string;
 
-  @Column('varchar', { length: 255 })
-  timeline: string;
+  // ----- Step 5: Style / Standards / Regulations -----
 
-  @Column('text', { nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  style?: string;
+
+  // ----- Step 6: Budget & Timeline -----
+
+  @Column({ type: 'bigint', nullable: true })
+  budget?: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  timeline?: string;
+
+  @Column({ type: 'text', nullable: true })
   additionalInformation?: string;
 
-  // Attached files
-  @Column('simple-array', { nullable: true })
-  attachedFileIds: string[];
+  // ----- Attached Files (file URLs or IDs) -----
 
-  // Selection method (manual, template, ai-advice)
-  @Column('enum', { enum: SelectionMethod, default: SelectionMethod.MANUAL })
+  @Column({ type: 'simple-array', nullable: true })
+  attachedFiles?: string[];
+
+  // ----- Meta -----
+
+  @Column({ type: 'enum', enum: SelectionMethod, default: SelectionMethod.MANUAL })
   selectionMethod: SelectionMethod;
 
-  // Current step (for progress tracking)
-  @Column('int', { default: 1 })
+  /** Tracks the furthest step reached (1–6). */
+  @Column({ type: 'int', default: 1 })
   currentStep: number;
 
-  // Status tracking
-  @Column('enum', {
+  @Column({
+    type: 'enum',
     enum: CustomDesignStatus,
     default: CustomDesignStatus.IN_PROGRESS,
   })
   status: CustomDesignStatus;
 
-  // Estimate information
-  @Column('bigint', { nullable: true })
+  // ----- Estimate (filled after submission/review) -----
+
+  @Column({ type: 'bigint', nullable: true })
   estimateCost?: number;
 
-  @Column('varchar', { length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   estimateTimeline?: string;
 
-  @Column('varchar', { length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   estimateNotes?: string;
 
-  // Completion tracking
-  @Column('boolean', { default: false })
+  // ----- Submission tracking -----
+
+  @Column({ type: 'boolean', default: false })
   isSubmitted: boolean;
 
-  @Column('timestamp', { nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   submittedAt?: Date;
 
-  @Column('boolean', { default: false })
-  isApproved: boolean;
+  // ----- Admin review -----
 
-  @Column('timestamp', { nullable: true })
-  approvedAt?: Date;
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  reviewNotes?: string;
 
-  @Column('varchar', { length: 500, nullable: true })
-  approvalNotes?: string;
+  @Column({ type: 'timestamp', nullable: true })
+  reviewedAt?: Date;
 
-  // Timestamps
+  // ----- Timestamps -----
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @Column('timestamp', { nullable: true })
-  deletedAt?: Date;
 }

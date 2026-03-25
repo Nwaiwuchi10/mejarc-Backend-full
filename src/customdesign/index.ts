@@ -1,6 +1,5 @@
 /**
  * Custom Design Module Exports
- * Central export point for all customdesign module components
  */
 
 // Types & Enums
@@ -17,36 +16,29 @@ export {
   ServiceConfig,
 } from './customdesign.types';
 
-// Entities
+// Entity
 export { CustomDesign } from './entities/customdesign.entity';
 
 // DTOs
 export {
-  ServiceContextStepDto,
-  ProjectTypeStepDto,
-  ScopeDeliverableStepDto,
-  SizeComplexityStepDto,
-  StyleStepDto,
-  BudgetTimelineStepDto,
-  CreateCustomDesignDto,
+  InitializeCustomDesignDto,
+  SaveStepDto,
+  SubmitCustomDesignDto,
   UpdateCustomDesignDto,
-  UpdateCustomDesignStepDto,
-  AttachFilesDto,
-  CustomDesignResponseDto,
   ListCustomDesignsQueryDto,
-  ValidateCustomDesignStepDto,
+  ReviewCustomDesignDto,
+  CustomDesignResponseDto,
 } from './dto/customdesign.dto';
 
-// Service & Controller
+// Service, Controller & Module
 export { CustomDesignService } from './customdesign.service';
 export { CustomDesignController } from './customdesign.controller';
-
-// Module
 export { CustomDesignModule } from './customdesign.module';
 
 // Configurations
 export {
   LANDSCAPE_DESIGN_CONFIG,
+  PRODUCT_DESIGN_CONFIG,
   INTERIOR_DESIGN_CONFIG,
   RENDERING_3D_CONFIG,
   ARCHITECTURAL_2D_CONFIG,

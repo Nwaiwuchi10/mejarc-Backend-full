@@ -1,6 +1,8 @@
 /**
  * Custom Design DTOs
- * Data Transfer Objects for all custom design operations
+ * Flat Data Transfer Objects aligned with the frontend 6-step wizard state shape:
+ *   { serviceContext, projectType, scopeDeliverables[], sizeComplexity,
+ *     style, budget, timeline, attachedFiles[] }
  */
 
 import {
@@ -9,122 +11,106 @@ import {
   IsArray,
   IsOptional,
   IsEnum,
-  ValidateNested,
-  ArrayMinSize,
+  IsInt,
   Min,
+  Max,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ServiceType, SelectionMethod } from '../customdesign.types';
+import { ServiceType, SelectionMethod, CustomDesignStatus } from '../customdesign.types';
 
-/**
- * Step 1: Service Context DTO
- */
-export class ServiceContextStepDto {
+// ---------------------------------------------------------------------------
+// Wizard: Initialize (Step 1 only)
+// POST /custom-design/initialize
+// ---------------------------------------------------------------------------
+
+export class InitializeCustomDesignDto {
   @IsEnum(ServiceType)
   serviceType: ServiceType;
 
   @IsString()
   serviceContext: string;
+
+  @IsEnum(SelectionMethod)
+  @IsOptional()
+  selectionMethod?: SelectionMethod;
 }
 
-/**
- * Step 2: Project Type DTO
- */
-export class ProjectTypeStepDto {
-  @IsString()
-  projectType: string;
+// ---------------------------------------------------------------------------
+// Wizard: Save a single step mid-flow
+// PATCH /custom-design/:id/step
+// ---------------------------------------------------------------------------
+
+export class SaveStepDto {
+  @IsInt()
+  @Min(1)
+  @Max(6)
+  step: number;
+
+  // Free-form step data — validated server-side against service config
+  data: Record<string, any>;
 }
 
-/**
- * Step 3: Scope & Deliverables DTO
- */
-export class ScopeDeliverableStepDto {
-  @IsString()
-  scopeDeliverable: string;
+// ---------------------------------------------------------------------------
+// One-shot: Submit full design (all 6 steps at once)
+// Frontend completes the wizard locally then POSTs everything at once.
+// POST /custom-design  OR  POST /custom-design/:id/submit
+// ---------------------------------------------------------------------------
 
+export class SubmitCustomDesignDto {
+  @IsEnum(ServiceType)
+  serviceType: ServiceType;
+
+  @IsString()
+  serviceContext: string;
+
+  @IsString()
+  @IsOptional()
+  projectType?: string;
+
+  /** Contains base package title AND any addon titles */
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  addons?: string[];
-}
+  scopeDeliverables?: string[];
 
-/**
- * Step 4: Size / Complexity DTO
- */
-export class SizeComplexityStepDto {
   @IsString()
-  sizeComplexity: string;
-}
+  @IsOptional()
+  sizeComplexity?: string;
 
-/**
- * Step 5: Style DTO
- */
-export class StyleStepDto {
   @IsString()
-  style: string;
-}
+  @IsOptional()
+  style?: string;
 
-/**
- * Step 6: Budget & Timeline DTO
- */
-export class BudgetTimelineStepDto {
   @IsNumber()
   @Min(0)
-  budget: number;
+  @IsOptional()
+  @Type(() => Number)
+  budget?: number;
 
   @IsString()
-  timeline: string;
-
-  @IsArray()
-  @IsString({ each: true })
   @IsOptional()
-  attachedFileIds?: string[];
+  timeline?: string;
 
   @IsString()
   @IsOptional()
   additionalInformation?: string;
-}
 
-/**
- * Complete Custom Design Submission DTO
- * Combines all steps into one submission
- */
-export class CreateCustomDesignDto {
-  @IsEnum(ServiceType)
-  serviceType: ServiceType;
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  attachedFiles?: string[];
 
   @IsEnum(SelectionMethod)
-  selectionMethod: SelectionMethod;
-
-  @ValidateNested()
-  @Type(() => ServiceContextStepDto)
-  serviceContext: ServiceContextStepDto;
-
-  @ValidateNested()
-  @Type(() => ProjectTypeStepDto)
-  projectType: ProjectTypeStepDto;
-
-  @ValidateNested()
-  @Type(() => ScopeDeliverableStepDto)
-  scopeDeliverable: ScopeDeliverableStepDto;
-
-  @ValidateNested()
-  @Type(() => SizeComplexityStepDto)
-  sizeComplexity: SizeComplexityStepDto;
-
-  @ValidateNested()
-  @Type(() => StyleStepDto)
-  style: StyleStepDto;
-
-  @ValidateNested()
-  @Type(() => BudgetTimelineStepDto)
-  budgetTimeline: BudgetTimelineStepDto;
+  @IsOptional()
+  selectionMethod?: SelectionMethod;
 }
 
-/**
- * Update Custom Design DTO
- * Allows updating a custom design submission
- */
+// ---------------------------------------------------------------------------
+// Update: Partial update of a draft
+// PATCH /custom-design/:id
+// ---------------------------------------------------------------------------
+
 export class UpdateCustomDesignDto {
   @IsEnum(ServiceType)
   @IsOptional()
@@ -138,14 +124,10 @@ export class UpdateCustomDesignDto {
   @IsOptional()
   projectType?: string;
 
-  @IsString()
-  @IsOptional()
-  scopeDeliverable?: string;
-
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  addons?: string[];
+  scopeDeliverables?: string[];
 
   @IsString()
   @IsOptional()
@@ -156,8 +138,9 @@ export class UpdateCustomDesignDto {
   style?: string;
 
   @IsNumber()
-  @IsOptional()
   @Min(0)
+  @IsOptional()
+  @Type(() => Number)
   budget?: number;
 
   @IsString()
@@ -167,91 +150,88 @@ export class UpdateCustomDesignDto {
   @IsString()
   @IsOptional()
   additionalInformation?: string;
-}
 
-/**
- * Update Single Step DTO
- * Generic DTO for updating individual steps
- */
-export class UpdateCustomDesignStepDto {
-  @IsNumber()
-  step: number;
-
-  @IsOptional()
-  data: Record<string, any>;
-}
-
-/**
- * Attach Files DTO
- */
-export class AttachFilesDto {
   @IsArray()
-  @ArrayMinSize(1)
   @IsString({ each: true })
-  fileIds: string[];
-
-  @IsString()
   @IsOptional()
-  purpose?: string; // e.g., 'reference', 'specification', 'additional-info'
+  attachedFiles?: string[];
 }
 
-/**
- * Custom Design Response DTO
- */
-export class CustomDesignResponseDto {
-  id: string;
-  userId: string;
-  agentId?: string;
-  serviceType: ServiceType;
-  selectionMethod: SelectionMethod;
-  serviceContext: string;
-  projectType: string;
-  scopeDeliverable: string;
-  addons: string[];
-  sizeComplexity: string;
-  style: string;
-  budget: number;
-  timeline: string;
-  additionalInformation?: string;
-  attachedFiles: string[];
-  currentStep: number;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  estimateCost?: number;
-  estimateTimeline?: string;
-}
+// ---------------------------------------------------------------------------
+// Query: List custom designs
+// GET /custom-design/my  |  GET /custom-design/user/:id
+// ---------------------------------------------------------------------------
 
-/**
- * List Custom Designs Query DTO
- */
 export class ListCustomDesignsQueryDto {
   @IsEnum(ServiceType)
   @IsOptional()
   serviceType?: ServiceType;
 
-  @IsString()
+  @IsEnum(CustomDesignStatus)
   @IsOptional()
-  status?: string;
+  status?: CustomDesignStatus;
 
-  @IsNumber()
-  @IsOptional()
+  @IsInt()
   @Min(1)
+  @IsOptional()
+  @Type(() => Number)
   page?: number = 1;
 
-  @IsNumber()
-  @IsOptional()
+  @IsInt()
   @Min(1)
+  @IsOptional()
+  @Type(() => Number)
   limit?: number = 10;
 }
 
-/**
- * Validate Custom Design Step DTO
- */
-export class ValidateCustomDesignStepDto {
-  @IsNumber()
-  step: number;
+// ---------------------------------------------------------------------------
+// Admin: Approve / Reject
+// ---------------------------------------------------------------------------
 
+export class ReviewCustomDesignDto {
+  @IsString()
   @IsOptional()
-  data: Record<string, any>;
+  notes?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Response DTO
+// ---------------------------------------------------------------------------
+
+export class CustomDesignResponseDto {
+  id: string;
+  userId: string;
+  agentId?: string;
+
+  serviceType: ServiceType;
+  selectionMethod: SelectionMethod;
+
+  /** Step 1 */
+  serviceContext: string;
+  /** Step 2 */
+  projectType?: string;
+  /** Step 3 – base package + addons combined */
+  scopeDeliverables: string[];
+  /** Step 4 */
+  sizeComplexity?: string;
+  /** Step 5 */
+  style?: string;
+  /** Step 6 */
+  budget?: number;
+  timeline?: string;
+  additionalInformation?: string;
+  attachedFiles: string[];
+
+  currentStep: number;
+  status: CustomDesignStatus;
+  isSubmitted: boolean;
+  submittedAt?: Date;
+
+  /** Server-computed estimate */
+  estimateCost?: number;
+  estimateTimeline?: string;
+  estimateNotes?: string;
+
+  createdAt: Date;
+  updatedAt: Date;
 }

@@ -1,13 +1,15 @@
 /**
  * Custom Design Controller
- * API endpoints for custom design submissions
+ * REST API endpoints for the 6-step custom design wizard
+ *
+ * Auth: The UserAuthGuard sets request.userId (not request.user.id)
  */
 
 import {
   Controller,
   Get,
   Post,
-  Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -20,247 +22,207 @@ import {
 } from '@nestjs/common';
 import { CustomDesignService } from './customdesign.service';
 import {
-  CreateCustomDesignDto,
+  InitializeCustomDesignDto,
+  SaveStepDto,
+  SubmitCustomDesignDto,
   UpdateCustomDesignDto,
-  UpdateCustomDesignStepDto,
-  CustomDesignResponseDto,
   ListCustomDesignsQueryDto,
-  ValidateCustomDesignStepDto,
-  ServiceContextStepDto,
+  CustomDesignResponseDto,
+  ReviewCustomDesignDto,
 } from './dto/customdesign.dto';
-
 import { ServiceType } from './customdesign.types';
 import { UserAuthGuard } from 'src/user/guard/user.guard';
 
 @Controller('custom-design')
 export class CustomDesignController {
-  constructor(private readonly customDesignService: CustomDesignService) {}
+  constructor(private readonly service: CustomDesignService) {}
 
-  /**
-   * POST /custom-design/initialize
-   * Initialize a new custom design submission (Step 1)
-   */
+  // ---------------------------------------------------------------------------
+  // POST /custom-design/initialize
+  // Start a new wizard session (Step 1: service type + context)
+  // ---------------------------------------------------------------------------
   @Post('initialize')
   @UseGuards(UserAuthGuard)
-  async initializeCustomDesign(
+  async initialize(
     @Request() req,
-    @Body() serviceContextDto: ServiceContextStepDto,
+    @Body() dto: InitializeCustomDesignDto,
   ): Promise<CustomDesignResponseDto> {
-    const userId = req.user.id;
-    const agentId = req.user.agentId || null;
-
-    return this.customDesignService.initializeCustomDesign(
-      userId,
-      serviceContextDto,
-      agentId,
-    );
+    const userId: string = req.userId;
+    const agentId: string | undefined = req.agentId ?? undefined;
+    return this.service.initialize(userId, dto, agentId);
   }
 
-  /**
-   * POST /custom-design
-   * Create a complete custom design submission
-   */
+  // ---------------------------------------------------------------------------
+  // POST /custom-design
+  // One-shot: complete all 6 steps at once and submit immediately
+  // (Frontend completes wizard locally then POSTs everything together)
+  // ---------------------------------------------------------------------------
   @Post()
   @UseGuards(UserAuthGuard)
-  async createCustomDesign(
+  async createAndSubmit(
     @Request() req,
-    @Body() createCustomDesignDto: CreateCustomDesignDto,
+    @Body() dto: SubmitCustomDesignDto,
   ): Promise<CustomDesignResponseDto> {
-    const userId = req.user.id;
-    const agentId = req.user.agentId || null;
-
-    return this.customDesignService.create(
-      userId,
-      createCustomDesignDto,
-      agentId,
-    );
+    const userId: string = req.userId;
+    const agentId: string | undefined = req.agentId ?? undefined;
+    return this.service.createAndSubmit(userId, dto, agentId);
   }
 
-  /**
-   * PUT /custom-design/:id/step
-   * Update a specific step in the custom design
-   */
-  @Put(':id/step')
+  // ---------------------------------------------------------------------------
+  // GET /custom-design/my
+  // Current user's own designs (paginated)
+  // ---------------------------------------------------------------------------
+  @Get('my')
   @UseGuards(UserAuthGuard)
-  async updateStep(
+  async getMyDesigns(
     @Request() req,
-    @Param('id') customDesignId: string,
-    @Body() updateStepDto: UpdateCustomDesignStepDto,
-  ): Promise<CustomDesignResponseDto> {
-    const userId = req.user.id;
-
-    return this.customDesignService.updateStep(
-      customDesignId,
-      userId,
-      updateStepDto,
-    );
+    @Query() query: ListCustomDesignsQueryDto,
+  ) {
+    const userId: string = req.userId;
+    return this.service.findMyDesigns(userId, query);
   }
 
-  /**
-   * POST /custom-design/:id/validate-step
-   * Validate step data before saving
-   */
-  @Post(':id/validate-step')
-  @UseGuards(UserAuthGuard)
-  async validateStep(
-    @Param('id') customDesignId: string,
-    @Body() validateStepDto: ValidateCustomDesignStepDto,
-  ): Promise<{ isValid: boolean; errors?: string[] }> {
-    const customDesign =
-      await this.customDesignService.findById(customDesignId);
-
-    return this.customDesignService.validateStepData(
-      customDesign.serviceType,
-      validateStepDto.step,
-      validateStepDto.data,
-    );
+  // ---------------------------------------------------------------------------
+  // GET /custom-design/config/:serviceType
+  // Return the service configuration (contexts, projectTypes, scopes, etc.)
+  // Used by the frontend to populate wizard options.
+  // No auth required — public config endpoint.
+  // ---------------------------------------------------------------------------
+  @Get('config/:serviceType')
+  getServiceConfig(@Param('serviceType') serviceType: string) {
+    const valid = Object.values(ServiceType).includes(serviceType as ServiceType);
+    if (!valid) throw new BadRequestException(`Invalid service type: "${serviceType}"`);
+    return this.service.getServiceConfig(serviceType as ServiceType);
   }
 
-  /**
-   * PUT /custom-design/:id
-   * Update the entire custom design
-   */
-  @Put(':id')
+  // ---------------------------------------------------------------------------
+  // GET /custom-design/user/:userId    (Admin)
+  // ---------------------------------------------------------------------------
+  @Get('user/:userId')
   @UseGuards(UserAuthGuard)
-  async updateCustomDesign(
+  async getByUser(
+    @Param('userId') userId: string,
+    @Query() query: ListCustomDesignsQueryDto,
+  ) {
+    return this.service.findByUser(userId, query);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /custom-design/agent/:agentId  (Admin / Agent)
+  // ---------------------------------------------------------------------------
+  @Get('agent/:agentId')
+  @UseGuards(UserAuthGuard)
+  async getByAgent(
+    @Param('agentId') agentId: string,
+    @Query() query: ListCustomDesignsQueryDto,
+  ) {
+    return this.service.findByAgent(agentId, query);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /custom-design/:id
+  // ---------------------------------------------------------------------------
+  @Get(':id')
+  @UseGuards(UserAuthGuard)
+  async getById(@Param('id') id: string): Promise<CustomDesignResponseDto> {
+    return this.service.findById(id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /custom-design/:id/step
+  // Save a single step mid-wizard
+  // ---------------------------------------------------------------------------
+  @Patch(':id/step')
+  @UseGuards(UserAuthGuard)
+  async saveStep(
     @Request() req,
     @Param('id') id: string,
-    @Body() updateDto: UpdateCustomDesignDto,
+    @Body() dto: SaveStepDto,
   ): Promise<CustomDesignResponseDto> {
-    const userId = req.user.id;
-
-    return this.customDesignService.update(id, userId, updateDto);
+    const userId: string = req.userId;
+    return this.service.saveStep(id, userId, dto);
   }
 
-  /**
-   * POST /custom-design/:id/submit
-   * Submit a completed custom design
-   */
+  // ---------------------------------------------------------------------------
+  // POST /custom-design/:id/submit
+  // Finalize and submit an in-progress draft
+  // Optionally accepts final step-6 data (budget, timeline, additionalInfo)
+  // ---------------------------------------------------------------------------
   @Post(':id/submit')
   @UseGuards(UserAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async submitCustomDesign(
+  async submit(
     @Request() req,
     @Param('id') id: string,
+    @Body() dto?: Partial<SubmitCustomDesignDto>,
   ): Promise<CustomDesignResponseDto> {
-    const userId = req.user.id;
-
-    return this.customDesignService.submitCustomDesign(id, userId);
+    const userId: string = req.userId;
+    return this.service.submit(id, userId, dto);
   }
 
-  /**
-   * GET /custom-design/:id
-   * Get a specific custom design by ID
-   */
-  @Get(':id')
+  // ---------------------------------------------------------------------------
+  // POST /custom-design/:id/validate-step
+  // Validate step data against service config (server-side)
+  // ---------------------------------------------------------------------------
+  @Post(':id/validate-step')
   @UseGuards(UserAuthGuard)
-  async getCustomDesignById(
+  async validateStep(
     @Param('id') id: string,
+    @Body() body: { step: number; data: Record<string, any> },
+  ): Promise<{ isValid: boolean; errors?: string[] }> {
+    const design = await this.service.findById(id);
+    return this.service.validateStepData(design.serviceType, body.step, body.data);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /custom-design/:id
+  // Partial update of a draft (general)
+  // ---------------------------------------------------------------------------
+  @Patch(':id')
+  @UseGuards(UserAuthGuard)
+  async update(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomDesignDto,
   ): Promise<CustomDesignResponseDto> {
-    return this.customDesignService.findById(id);
+    const userId: string = req.userId;
+    return this.service.update(id, userId, dto);
   }
 
-  /**
-   * GET /custom-design/user/:userId
-   * Get all custom designs for a specific user
-   */
-  @Get('user/:userId')
-  @UseGuards(UserAuthGuard)
-  async getCustomDesignsByUserId(
-    @Param('userId') userId: string,
-    @Query() queryDto: ListCustomDesignsQueryDto,
-  ): Promise<{ data: CustomDesignResponseDto[]; total: number }> {
-    return this.customDesignService.findByUserId(userId, queryDto);
-  }
-
-  /**
-   * GET /custom-design/agent/:agentId
-   * Get all custom designs created by an agent
-   */
-  @Get('agent/:agentId')
-  @UseGuards(UserAuthGuard)
-  async getCustomDesignsByAgentId(
-    @Param('agentId') agentId: string,
-    @Query() queryDto: ListCustomDesignsQueryDto,
-  ): Promise<{ data: CustomDesignResponseDto[]; total: number }> {
-    return this.customDesignService.findByAgentId(agentId, queryDto);
-  }
-
-  /**
-   * DELETE /custom-design/:id
-   * Delete a custom design
-   */
+  // ---------------------------------------------------------------------------
+  // DELETE /custom-design/:id
+  // ---------------------------------------------------------------------------
   @Delete(':id')
   @UseGuards(UserAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteCustomDesign(
-    @Request() req,
-    @Param('id') id: string,
-  ): Promise<void> {
-    const userId = req.user.id;
-
-    return this.customDesignService.delete(id, userId);
+  async delete(@Request() req, @Param('id') id: string): Promise<void> {
+    const userId: string = req.userId;
+    return this.service.delete(id, userId);
   }
 
-  /**
-   * GET /custom-design/config/:serviceType
-   * Get service configuration
-   */
-  @Get('config/:serviceType')
-  getServiceConfig(@Param('serviceType') serviceType: string) {
-    const serviceTypeEnum = Object.values(ServiceType).includes(
-      serviceType as ServiceType,
-    )
-      ? (serviceType as ServiceType)
-      : null;
-
-    if (!serviceTypeEnum) {
-      throw new BadRequestException('Invalid service type');
-    }
-
-    return this.customDesignService.getServiceConfig(serviceTypeEnum);
-  }
-
-  /**
-   * POST /custom-design/:id/approve
-   * Approve a custom design (Admin only)
-   */
+  // ---------------------------------------------------------------------------
+  // POST /custom-design/:id/approve   (Admin)
+  // ---------------------------------------------------------------------------
   @Post(':id/approve')
   @UseGuards(UserAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async approveCustomDesign(
+  async approve(
     @Param('id') id: string,
-    @Body() body?: { notes?: string },
+    @Body() dto?: ReviewCustomDesignDto,
   ): Promise<CustomDesignResponseDto> {
-    return this.customDesignService.approveCustomDesign(id, body?.notes);
+    return this.service.approve(id, dto?.notes);
   }
 
-  /**
-   * POST /custom-design/:id/reject
-   * Reject a custom design (Admin only)
-   */
+  // ---------------------------------------------------------------------------
+  // POST /custom-design/:id/reject    (Admin)
+  // ---------------------------------------------------------------------------
   @Post(':id/reject')
   @UseGuards(UserAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async rejectCustomDesign(
+  async reject(
     @Param('id') id: string,
-    @Body() body?: { reason?: string },
+    @Body() dto?: ReviewCustomDesignDto,
   ): Promise<CustomDesignResponseDto> {
-    return this.customDesignService.rejectCustomDesign(id, body?.reason);
-  }
-
-  /**
-   * GET /custom-design/my/designs
-   * Get current user's custom designs
-   */
-  @Get('my/designs')
-  @UseGuards(UserAuthGuard)
-  async getMyCustomDesigns(
-    @Request() req,
-    @Query() queryDto: ListCustomDesignsQueryDto,
-  ): Promise<{ data: CustomDesignResponseDto[]; total: number }> {
-    const userId = req.user.id;
-
-    return this.customDesignService.findByUserId(userId, queryDto);
+    return this.service.reject(id, dto?.notes);
   }
 }
