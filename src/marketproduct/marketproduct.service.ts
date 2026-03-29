@@ -7,12 +7,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between } from 'typeorm';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
-import { MarketProduct } from './entities/marketproduct.entity';
+import { MarketProduct, MarketProductStatus } from './entities/marketproduct.entity';
 import { Rating } from './entities/rating.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { RateProductDto } from './dto/rate-product.dto';
 import { MarketProductMailService } from './service/mail.service';
 import { MarketProductFilterDto } from './dto/marketproduct-filter.dto';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
 
 @Injectable()
 export class MarketproductService {
@@ -24,6 +26,7 @@ export class MarketproductService {
     @InjectRepository(Rating)
     private readonly ratingRepo: Repository<Rating>,
     private readonly mailService: MarketProductMailService,
+    private readonly notificationService: NotificationService,
   ) { }
 
   async create(
@@ -208,6 +211,7 @@ export class MarketproductService {
     },
   ) {
     const product = await this.findOne(id);
+    const oldStatus = product.status;
 
     // 1. Apply DTO updates first
     Object.assign(product, updateMarketproductDto);
@@ -223,7 +227,26 @@ export class MarketproductService {
       product.structuralPlan = files.structuralPlan.map((f: any) => f.location);
     }
 
-    return this.productRepo.save(product);
+    const updatedProduct = await this.productRepo.save(product);
+
+    // 3. Notify agent if approved
+    if (oldStatus !== MarketProductStatus.APPROVED && updatedProduct.status === MarketProductStatus.APPROVED) {
+      const agent = await this.agentRepo.findOne({
+        where: { id: updatedProduct.agentId },
+        relations: ['user']
+      });
+      if (agent && agent.user) {
+        await this.notificationService.createNotification(
+          agent.user.id,
+          NotificationType.PRODUCT,
+          'Product Approved',
+          `Your product "${updatedProduct.title}" has been approved by admin.`,
+          { productId: updatedProduct.id }
+        );
+      }
+    }
+
+    return updatedProduct;
   }
 
   async remove(id: string) {

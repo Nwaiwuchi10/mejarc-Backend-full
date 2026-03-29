@@ -10,8 +10,10 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateAgentProfileDto } from './dto/create-agent-profile.dto';
 import { CreateAgentBioDto } from './dto/create-agent-bio.dto';
 import { CreateAgentKycDto } from './dto/create-agent-kyc.dto';
+import { ProOverviewDto } from './dto/pro-overview.dto';
+import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import {
   Agent,
   AgentKycStatus,
@@ -29,7 +31,8 @@ import { Admin } from '../admin/entities/admin.entity';
 import { UverifyKycProvider } from './provider/uverify.provider';
 import { AgentMailService } from './service/mail.service';
 import { PaginationDto } from '../utils/pagination.dto';
-import { Like } from 'typeorm';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
 
 @Injectable()
 export class AgentService {
@@ -48,8 +51,11 @@ export class AgentService {
     private userRepo: Repository<User>,
     @InjectRepository(Admin)
     private adminRepo: Repository<Admin>,
+    @InjectRepository(MarketProduct)
+    private productRepo: Repository<MarketProduct>,
     private readonly kycProvider: UverifyKycProvider,
     private readonly mailService: AgentMailService,
+    private readonly notificationService: NotificationService,
   ) { }
 
   /**
@@ -141,6 +147,9 @@ export class AgentService {
     profile.specialization = profileDto.specialization;
     profile.portfolioLink = profileDto.portfolioLink;
     profile.phoneNumber = profileDto.phoneNumber;
+    profile.location = profileDto.location;
+    profile.responseTime = profileDto.responseTime;
+    profile.completedProjectsCount = profileDto.completedProjectsCount ?? 0;
 
     // === Handle profile picture upload (S3) ===
     if (file) {
@@ -449,10 +458,20 @@ export class AgentService {
 
     agent.registrationStatus = AgentRegistrationStatus.APPROVED;
     agent.isApprovedByAdmin = true;
-    agent.kycStatus = AgentKycStatus.VERIFIED;
     agent.approvedAt = new Date();
 
     const savedAgent = await this.agentRepo.save(agent);
+
+    // Notify agent via persistent notification
+    if (savedAgent.user) {
+      await this.notificationService.createNotification(
+        savedAgent.user.id,
+        NotificationType.KYC,
+        'Account Verified',
+        'Your agent account was successfully verified by admin. You can now list products on the marketplace.',
+        { agentId: savedAgent.id }
+      );
+    }
 
     // Send approval email to agent
     try {
@@ -549,6 +568,45 @@ export class AgentService {
     const wallet = new Wallet();
     const agent = this.agentRepo.create({ ...dto, user, userId, wallet });
     return this.agentRepo.save(agent);
+  }
+
+  async findAllPros(paginationDto: PaginationDto): Promise<{ data: ProOverviewDto[], meta: any }> {
+    const { page = 1, limit = 10, search } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const query = this.agentRepo.createQueryBuilder('agent')
+      .leftJoinAndSelect('agent.profile', 'profile')
+      .leftJoinAndSelect('agent.user', 'user')
+      .where('agent.registrationStatus = :status', { status: AgentRegistrationStatus.APPROVED });
+
+    if (search) {
+      query.andWhere('(agent.businessName ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)', { search: `%${search}%` });
+    }
+
+    const [agents, total] = await query
+      .orderBy('agent.createdAt', 'DESC')
+      .take(limit)
+      .skip(skip)
+      .getManyAndCount();
+
+    const pros: ProOverviewDto[] = await Promise.all(
+      agents.map(async (agent) => {
+        const products = await this.productRepo.find({
+          where: { agentId: agent.id },
+        });
+        return this.mapToProOverview(agent, products);
+      }),
+    );
+
+    return {
+      data: pros,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findAll(paginationDto: PaginationDto) {
@@ -697,6 +755,89 @@ export class AgentService {
     }
 
     agent.kycStatus = status;
-    return this.agentRepo.save(agent);
+    const savedAgent = await this.agentRepo.save(agent);
+
+    if (status === AgentKycStatus.VERIFIED && savedAgent.user) {
+      await this.notificationService.createNotification(
+        savedAgent.user.id,
+        NotificationType.KYC,
+        'Account Verified',
+        'Your agent KYC has been verified.',
+        { agentId: savedAgent.id }
+      );
+    }
+
+    return savedAgent;
+  }
+
+  async findProById(id: string): Promise<ProOverviewDto> {
+    const agent = await this.agentRepo.findOne({
+      where: {
+        id,
+        registrationStatus: AgentRegistrationStatus.APPROVED,
+      },
+      relations: ['user', 'profile'],
+    });
+
+    if (!agent) {
+      throw new NotFoundException(`Approved agent with ID ${id} not found`);
+    }
+
+    const products = await this.productRepo.find({
+      where: { agentId: agent.id },
+    });
+
+    return this.mapToProOverview(agent, products);
+  }
+
+  /**
+   * Helper to map an agent and their products to a ProOverviewDto.
+   * Centralizes the logic for rating calculation, price range derivation, and title formatting.
+   */
+  private mapToProOverview(
+    agent: Agent,
+    products: MarketProduct[],
+  ): ProOverviewDto {
+    // Calculate aggregated rating
+    let totalRating = 0;
+    let ratedProductsCount = 0;
+    products.forEach((p) => {
+      if (p.ratingCount > 0) {
+        totalRating += Number(p.averageRating);
+        ratedProductsCount++;
+      }
+    });
+    const avgRating =
+      ratedProductsCount > 0
+        ? Number((totalRating / ratedProductsCount).toFixed(1))
+        : 0;
+
+    // Find min price
+    let minPrice = 0;
+    if (products.length > 0) {
+      minPrice = Math.min(...products.map((p) => Number(p.price)));
+    }
+
+    // Combine title and specializations
+    const profTitle = agent.profile?.preferredTitle || 'Pro';
+    const specs = agent.profile?.specialization || [];
+    const combinedTitle = [profTitle, ...specs].join(', ');
+
+    return {
+      id: agent.id,
+      businessName: agent.businessName || 'Unnamed Business',
+      profilePicture: agent.profile?.profilePicture || '',
+      professionalTitle: combinedTitle,
+      specializations: specs,
+      rating: avgRating,
+      yearsOfExperience: agent.profile?.yearsOfExperience || 0,
+      completedProjects: agent.profile?.completedProjectsCount || 0,
+      location: agent.profile?.location || 'Unknown',
+      priceRange:
+        minPrice > 0
+          ? `from ₦${(minPrice / 1000).toFixed(0)}k`
+          : 'Contact for pricing',
+      responseTime: agent.profile?.responseTime || 'replies in 1 hour',
+    };
   }
 }

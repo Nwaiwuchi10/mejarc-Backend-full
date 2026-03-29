@@ -8,12 +8,15 @@ import { AgentModule } from '../agent/agent.module';
 import { UserModule } from '../user/user.module';
 import { User } from 'src/user/entities/user.entity';
 import { Agent } from 'src/agent/entities/agent.entity';
+import { Admin } from '../admin/entities/admin.entity';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Wallet, WalletTransaction, User, Agent]),
+    TypeOrmModule.forFeature([Wallet, WalletTransaction, User, Agent, Admin]),
     // forwardRef(() => AgentModule),
     UserModule,
+    NotificationModule,
   ],
   controllers: [WalletController],
   providers: [WalletService],

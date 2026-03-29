@@ -289,6 +289,7 @@ export class AdminService {
     await this.agentService.update(agentId, {
       isApprovedByAdmin: true,
       kycStatus: 'VERIFIED',
+      registrationStatus: 'APPROVED',
     } as any);
 
     try {

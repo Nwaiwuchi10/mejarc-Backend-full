@@ -5,6 +5,9 @@ import { Wallet } from './entities/wallet.entity';
 import { WalletTransaction, TransactionType } from './entities/wallet-transaction.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { WithdrawDto } from './dto/withdraw.dto';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
+import { Admin } from '../admin/entities/admin.entity';
 
 @Injectable()
 export class WalletService {
@@ -15,6 +18,9 @@ export class WalletService {
     private readonly transactionRepository: Repository<WalletTransaction>,
     @InjectRepository(Agent)
     private readonly agentRepository: Repository<Agent>,
+    @InjectRepository(Admin)
+    private readonly adminRepository: Repository<Admin>,
+    private readonly notificationService: NotificationService,
   ) { }
 
   async getOverview(userId: string) {
@@ -91,6 +97,31 @@ export class WalletService {
 
       await queryRunner.manager.save(transaction);
       await queryRunner.commitTransaction();
+
+      // Notify Admin of withdrawal request
+      const admins = await this.adminRepository.find({ relations: ['user'] });
+      for (const admin of admins) {
+        if (admin.user) {
+          await this.notificationService.createNotification(
+            admin.user.id,
+            NotificationType.WITHDRAWAL,
+            'Withdrawal Request',
+            `Agent ${agent.user?.firstName || 'Unknown'} has requested a withdrawal of ₦${withdrawalAmount}.`,
+            { agentId: agent.id, amount: withdrawalAmount }
+          );
+        }
+      }
+
+      // Notify Agent of withdrawal approval
+      if (agent.user) {
+        await this.notificationService.createNotification(
+          agent.user.id,
+          NotificationType.WITHDRAWAL,
+          'Withdrawal Approved',
+          `Your withdrawal of ₦${withdrawalAmount} has been approved and processed.`,
+          { amount: withdrawalAmount }
+        );
+      }
 
       return {
         message: 'Withdrawal successful',

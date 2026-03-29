@@ -15,6 +15,7 @@ import {
   Min,
   Max,
   IsBoolean,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ServiceType, SelectionMethod, CustomDesignStatus } from '../customdesign.types';
@@ -58,6 +59,10 @@ export class SaveStepDto {
 // ---------------------------------------------------------------------------
 
 export class SubmitCustomDesignDto {
+  @IsUUID()
+  @IsOptional()
+  agentId?: string;
+
   @IsEnum(ServiceType)
   serviceType: ServiceType;
 

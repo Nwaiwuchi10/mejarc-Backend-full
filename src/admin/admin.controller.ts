@@ -7,10 +7,12 @@ import {
   UseGuards,
   Request,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminAuthGuard } from './guards/admin-auth.guard';
 import { PaginationDto } from '../utils/pagination.dto';
+import { AdminLoginDto, VerifyAdminLoginDto, MakeAdminDto } from './dto/admin-login.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -22,7 +24,7 @@ export class AdminController {
   // Body: { userId: string, role?: string }
   // ══════════════════════════════════════════
   @Post('make-admin')
-  async makeAdmin(@Body() body: { userId: string; role?: string }) {
+  async makeAdmin(@Body() body: MakeAdminDto) {
     return this.adminService.makeAdmin(body.userId, body.role);
   }
 
@@ -32,7 +34,11 @@ export class AdminController {
   // Body: { email: string, password: string }
   // ══════════════════════════════════════════
   @Post('login')
-  async adminLogin(@Body() body: { email: string; password: string }) {
+  async adminLogin(@Body() body: any) {
+    console.log('Admin login body received:', body);
+    if (!body || !body.email || !body.password) {
+      throw new BadRequestException('Request body must contain email and password');
+    }
     return this.adminService.adminLogin(body.email, body.password);
   }
 
@@ -42,7 +48,7 @@ export class AdminController {
   // Body: { email: string, token: string }
   // ══════════════════════════════════════════
   @Post('verify-login')
-  async verifyAdminLogin(@Body() body: { email: string; token: string }) {
+  async verifyAdminLogin(@Body() body: VerifyAdminLoginDto) {
     return this.adminService.verifyAdminLogin(body.email, body.token);
   }
 

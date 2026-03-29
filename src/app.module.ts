@@ -13,6 +13,8 @@ import { MarketproductModule } from './marketproduct/marketproduct.module';
 import { OrderModule } from './order/order.module';
 import { WalletModule } from './wallet/wallet.module';
 import { CustomDesignModule } from './customdesign/customdesign.module';
+import { NotificationModule } from './notification/notification.module';
+import { ChatModule } from './chat/chat.module';
 import config from './config/config';
 
 @Module({
@@ -71,7 +73,8 @@ import config from './config/config';
     OrderModule,
     WalletModule,
     CustomDesignModule,
-    // RolesModule,
+    NotificationModule,
+    ChatModule, // RolesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

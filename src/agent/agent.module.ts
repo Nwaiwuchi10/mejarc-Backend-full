@@ -8,11 +8,13 @@ import { AgentBio } from './entities/agent-bio.entity';
 import { AgentKyc } from './entities/agent-kyc.entity';
 import { User } from '../user/entities/user.entity';
 import { Admin } from '../admin/entities/admin.entity';
+import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
 
 import { MulterModule } from '@nestjs/platform-express';
 import { UverifyKycProvider } from './provider/uverify.provider';
 import { AgentMailService } from './service/mail.service';
 import { UserModule } from '../user/user.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -24,8 +26,10 @@ import { UserModule } from '../user/user.module';
       AgentKyc,
       User,
       Admin,
+      MarketProduct,
     ]),
     UserModule,
+    NotificationModule,
   ],
   controllers: [AgentController],
   providers: [AgentService, UverifyKycProvider, AgentMailService],

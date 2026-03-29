@@ -42,12 +42,14 @@ export class CustomDesignService {
     dto: InitializeCustomDesignDto,
     agentId?: string,
   ): Promise<CustomDesignResponseDto> {
+    dto.serviceType = this.mapCategoryToServiceType(dto.serviceType as any);
+
     const draft = this.repo.create({
       userId,
       agentId,
       serviceType: dto.serviceType,
       serviceContext: dto.serviceContext,
-      selectionMethod: dto.selectionMethod ?? SelectionMethod.MANUAL,
+      selectionMethod: this.mapMethodToSelectionMethod(dto.selectionMethod as any),
       currentStep: 1,
       status: CustomDesignStatus.IN_PROGRESS,
       isSubmitted: false,
@@ -66,9 +68,20 @@ export class CustomDesignService {
   async createAndSubmit(
     userId: string,
     dto: SubmitCustomDesignDto,
-    agentId?: string,
+    contextAgentId?: string,
+    files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
+    // Map serviceType if it's coming as a string title from frontend
+    dto.serviceType = this.mapCategoryToServiceType(dto.serviceType as any);
+
     this.validateSubmissionFields(dto);
+
+    // Prioritize agentId from DTO (the selected pro) over req.agentId (the user's own agent profile)
+    const agentId = dto.agentId || contextAgentId;
+
+    // Extract S3 URLs from uploaded files
+    const uploadedUrls = this.extractS3Urls(files);
+    const combinedFiles = [...(dto.attachedFiles ?? []), ...uploadedUrls];
 
     const design = this.repo.create({
       userId,
@@ -82,8 +95,8 @@ export class CustomDesignService {
       budget: dto.budget,
       timeline: dto.timeline,
       additionalInformation: dto.additionalInformation,
-      attachedFiles: dto.attachedFiles ?? [],
-      selectionMethod: dto.selectionMethod ?? SelectionMethod.MANUAL,
+      attachedFiles: combinedFiles,
+      selectionMethod: this.mapMethodToSelectionMethod(dto.selectionMethod as any),
       currentStep: 6,
       status: CustomDesignStatus.SUBMITTED,
       isSubmitted: true,
@@ -107,11 +120,13 @@ export class CustomDesignService {
     id: string,
     userId: string,
     dto: SaveStepDto,
+    files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const design = await this.getOwnedDesign(id, userId);
     this.assertEditable(design);
 
     const { step, data } = dto;
+    const uploadedUrls = this.extractS3Urls(files);
 
     switch (step) {
       case 1:
@@ -140,7 +155,11 @@ export class CustomDesignService {
         if (data.timeline !== undefined) design.timeline = data.timeline;
         if (data.additionalInformation !== undefined)
           design.additionalInformation = data.additionalInformation;
-        if (data.attachedFiles !== undefined) design.attachedFiles = data.attachedFiles;
+        
+        // Merge uploaded files with any provided URLs in data
+        const attachedFromData = data.attachedFiles ?? [];
+        design.attachedFiles = [...(design.attachedFiles ?? []), ...attachedFromData, ...uploadedUrls];
+        
         design.currentStep = 6;
         break;
       default:
@@ -159,11 +178,17 @@ export class CustomDesignService {
     id: string,
     userId: string,
     dto: UpdateCustomDesignDto,
+    files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const design = await this.getOwnedDesign(id, userId);
     this.assertEditable(design);
 
     Object.assign(design, dto);
+
+    if (files && files.length > 0) {
+      const uploadedUrls = this.extractS3Urls(files);
+      design.attachedFiles = [...(design.attachedFiles ?? []), ...uploadedUrls];
+    }
 
     const saved = await this.repo.save(design);
     return this.toResponse(saved);
@@ -177,6 +202,7 @@ export class CustomDesignService {
     id: string,
     userId: string,
     dto?: Partial<SubmitCustomDesignDto>,
+    files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const design = await this.getOwnedDesign(id, userId);
 
@@ -193,7 +219,14 @@ export class CustomDesignService {
       if (dto.timeline !== undefined) design.timeline = dto.timeline;
       if (dto.additionalInformation !== undefined)
         design.additionalInformation = dto.additionalInformation;
-      if (dto.attachedFiles !== undefined) design.attachedFiles = dto.attachedFiles;
+      if (dto.attachedFiles !== undefined) {
+        design.attachedFiles = [...(design.attachedFiles ?? []), ...dto.attachedFiles];
+      }
+    }
+
+    if (files && files.length > 0) {
+      const uploadedUrls = this.extractS3Urls(files);
+      design.attachedFiles = [...(design.attachedFiles ?? []), ...uploadedUrls];
     }
 
     // Validate all required fields are present
@@ -262,6 +295,74 @@ export class CustomDesignService {
 
   getServiceConfig(serviceType: ServiceType) {
     return getServiceConfig(serviceType);
+  }
+
+  /**
+   * Maps frontend category strings (e.g., "Landscape", "Interior Design")
+   * to the backend ServiceType enum.
+   */
+  mapCategoryToServiceType(category: string): ServiceType {
+    const normalized = category?.toLowerCase().replace(/\s/g, '');
+
+    // Check if it's already a valid enum value
+    if (Object.values(ServiceType).includes(category as ServiceType)) {
+      return category as ServiceType;
+    }
+
+    const mapping: Record<string, ServiceType> = {
+      landscape: ServiceType.LANDSCAPE_DESIGN,
+      landscapedesign: ServiceType.LANDSCAPE_DESIGN,
+      interiordesign: ServiceType.INTERIOR_DESIGN,
+      interiordesign2: ServiceType.INTERIOR_DESIGN,
+      productdesign: ServiceType.PRODUCT_DESIGN,
+      '3drendering': ServiceType.RENDERING_3D,
+      '3drendering&visualization': ServiceType.RENDERING_3D,
+      '2darchitectural': ServiceType.ARCHITECTURAL_2D,
+      '2darchitecturaldrawings': ServiceType.ARCHITECTURAL_2D,
+      bim: ServiceType.BIM,
+      buildinginformationmodeling: ServiceType.BIM,
+      'mechanical-electrical': ServiceType.MEP_DRAWINGS,
+      mechanicalelectricaldrawings: ServiceType.MEP_DRAWINGS,
+      structural: ServiceType.STRUCTURAL_ENGINEERING,
+      structuralengineeringdrawings: ServiceType.STRUCTURAL_ENGINEERING,
+    };
+
+    const mapped = mapping[normalized];
+    if (!mapped) {
+      // If no mapping found, return as is (enum validation will catch it if invalid)
+      return category as ServiceType;
+    }
+    return mapped;
+  }
+
+  /**
+   * Maps frontend method strings (e.g., "ai", "manual")
+   * to the backend SelectionMethod enum.
+   */
+  mapMethodToSelectionMethod(method: string): SelectionMethod {
+    if (!method) return SelectionMethod.MANUAL;
+
+    const normalized = method.toLowerCase().replace(/\s/g, '');
+    if (normalized === 'ai') return SelectionMethod.AI_ADVICE;
+    if (normalized === 'manual' || normalized === 'hireapro') return SelectionMethod.HIRE_PRO;
+    if (normalized === 'contest') return SelectionMethod.CONTEST;
+    if (normalized === 'fixedquote') return SelectionMethod.FIXED_QUOTE;
+    if (normalized === 'template') return SelectionMethod.TEMPLATE;
+
+    // Check if it's already a valid enum value
+    if (Object.values(SelectionMethod).includes(method as SelectionMethod)) {
+      return method as SelectionMethod;
+    }
+
+    return SelectionMethod.MANUAL;
+  }
+
+  /**
+   * Helper to extract S3 URLs from multer-s3 uploaded files.
+   */
+  private extractS3Urls(files?: Express.Multer.File[]): string[] {
+    if (!files || !Array.isArray(files)) return [];
+    return files.map((f: any) => f.location).filter((url) => !!url);
   }
 
   // ---------------------------------------------------------------------------

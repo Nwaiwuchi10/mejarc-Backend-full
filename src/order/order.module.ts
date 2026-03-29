@@ -8,7 +8,10 @@ import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
 import { Admin } from '../admin/entities/admin.entity';
 import { PaystackService } from './paystack.service';
 import { MailService } from './Services/mail.service';
+import { Wallet } from '../wallet/entities/wallet.entity';
 import { WalletTransaction } from '../wallet/entities/wallet-transaction.entity';
+
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -17,8 +20,10 @@ import { WalletTransaction } from '../wallet/entities/wallet-transaction.entity'
       User,
       MarketProduct,
       Admin,
+      Wallet,
       WalletTransaction,
     ]),
+    NotificationModule,
   ],
   controllers: [OrderController],
   providers: [OrderService, MailService, PaystackService],

@@ -18,6 +18,9 @@ export enum SelectionMethod {
   MANUAL = 'manual',
   TEMPLATE = 'template',
   AI_ADVICE = 'ai-advice',
+  CONTEST = 'contest',
+  HIRE_PRO = 'hire_pro',
+  FIXED_QUOTE = 'fixed_quote',
 }
 
 export enum CustomDesignStatus {

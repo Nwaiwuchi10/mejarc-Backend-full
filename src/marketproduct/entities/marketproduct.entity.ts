@@ -101,6 +101,11 @@ export class MarketProduct {
     @Column({ type: 'simple-array', nullable: true })
     structuralPlan?: string[];
 
+    @Column({
+        type: 'enum',
+        enum: MarketProductStatus,
+        default: MarketProductStatus.PENDING_REVIEW,
+    })
     status: MarketProductStatus;
 
     @OneToMany(() => Rating, (rating) => rating.product)

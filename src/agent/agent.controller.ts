@@ -195,6 +195,20 @@ export class AgentController {
     return this.agentService.rejectAgent(agentId, adminId, reason);
   }
 
+  @Get('pros')
+  findAllPros(@Query() paginationDto: PaginationDto) {
+    return this.agentService.findAllPros(paginationDto);
+  }
+
+  /**
+   * GET /agent/pros/:id
+   * Fetch a single agent formatted for the "Agent Details" UI
+   */
+  @Get('pros/:id')
+  async getProById(@Param('id') id: string) {
+    return this.agentService.findProById(id);
+  }
+
   /**
    * GET /agent
    * Get all agents

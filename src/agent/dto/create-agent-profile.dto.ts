@@ -50,5 +50,17 @@ export class CreateAgentProfileDto {
 
   @IsString()
   @IsOptional()
-  phoneNumber?: string; // From previous signup
+  phoneNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  responseTime?: string;
+
+  @IsNumber()
+  @IsOptional()
+  completedProjectsCount?: number;
 }

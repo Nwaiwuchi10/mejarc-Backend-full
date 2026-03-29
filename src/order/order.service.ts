@@ -23,7 +23,10 @@ import { AddProjectDescDto } from './dto/projectDescription.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, AWS_S3_BUCKET_NAME } from '../utils/aws-s3.config';
+import { Wallet } from '../wallet/entities/wallet.entity';
 import { WalletTransaction, TransactionType } from '../wallet/entities/wallet-transaction.entity';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
 
 @Injectable()
 export class OrderService {
@@ -44,6 +47,7 @@ export class OrderService {
     private readonly configService: ConfigService,
     private readonly paystackService: PaystackService,
     private mailService: MailService,
+    private readonly notificationService: NotificationService,
   ) { }
 
   async createOrder(createOrderDTO: CreateOrderDto, userId?: string) {
@@ -212,6 +216,20 @@ export class OrderService {
 
       await this.orderRepository.save(order);
 
+      // Notify Admin of successful order payment
+      const admins = await this.adminRepository.find({ relations: ['user'] });
+      for (const admin of admins) {
+        if (admin.user) {
+          await this.notificationService.createNotification(
+            admin.user.id,
+            NotificationType.ORDER,
+            'New Order Payment',
+            `Order ${order.id} has been paid successfully. Total: ₦${order.grandTotal}`,
+            { orderId: order.id }
+          );
+        }
+      }
+
       const orderDetails = await this.orderRepository.findOne({
         where: { id: order.id },
         relations: ['user'],
@@ -225,11 +243,23 @@ export class OrderService {
             relations: ['agent', 'agent.wallet']
           });
 
-          if (product && product.agent && product.agent.wallet) {
+          if (product && product.agent) {
+            let wallet = product.agent.wallet;
+
+            if (!wallet) {
+              // Create wallet if it doesn't exist
+              wallet = new Wallet();
+              wallet.agent = product.agent;
+              wallet.balance = 0;
+              wallet.lifetimeEarnings = 0;
+              wallet.pendingClearance = 0;
+              await this.orderRepository.manager.save(wallet);
+              this.logger.log(`Created new wallet for agent ${product.agent.id}`);
+            }
+
             const productTotal = Number(product.price) * (item.totalQuantity || 1);
             const agentShare = productTotal * 0.90; // 90% to agent
 
-            const wallet = product.agent.wallet;
             wallet.balance = Number(wallet.balance) + agentShare;
             wallet.lifetimeEarnings = Number(wallet.lifetimeEarnings) + agentShare;
 
@@ -245,6 +275,24 @@ export class OrderService {
               wallet: wallet,
             });
             await this.walletTransactionRepository.save(transactionRecord);
+
+            // Notify Agent of product sale and wallet credit
+            if (product.agent.user) {
+              await this.notificationService.createNotification(
+                product.agent.user.id,
+                NotificationType.PRODUCTPAYMENT,
+                'Product Sold',
+                `Your product "${product.title}" has been sold. ₦${agentShare} has been credited to your wallet.`,
+                { productId: product.id, orderId: order.id }
+              );
+              await this.notificationService.createNotification(
+                product.agent.user.id,
+                NotificationType.WALLET,
+                'Wallet Credited',
+                `₦${agentShare} has been added to your wallet from sale of "${product.title}".`,
+                { amount: agentShare }
+              );
+            }
           }
         }
       }

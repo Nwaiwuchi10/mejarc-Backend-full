@@ -10,11 +10,14 @@ import { MulterModule } from '@nestjs/platform-express';
 
 import { MarketProductMailService } from './service/mail.service';
 
+import { NotificationModule } from '../notification/notification.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([MarketProduct, Agent, Rating]),
     AgentModule,
     MulterModule.register(),
+    NotificationModule,
   ],
   controllers: [MarketproductController],
   providers: [MarketproductService, MarketProductMailService],

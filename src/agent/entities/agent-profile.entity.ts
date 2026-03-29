@@ -63,6 +63,15 @@ export class AgentProfile {
   profilePicture?: string;
 
   @Column({ nullable: true })
+  location?: string;
+
+  @Column({ nullable: true })
+  responseTime?: string;
+
+  @Column({ type: 'int', default: 0 })
+  completedProjectsCount: number;
+
+  @Column({ nullable: true })
   phoneNumber?: string;
 
   @CreateDateColumn()

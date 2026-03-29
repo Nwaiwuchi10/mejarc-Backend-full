@@ -19,7 +19,10 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { CustomDesignService } from './customdesign.service';
 import {
   InitializeCustomDesignDto,
@@ -32,6 +35,7 @@ import {
 } from './dto/customdesign.dto';
 import { ServiceType } from './customdesign.types';
 import { UserAuthGuard } from 'src/user/guard/user.guard';
+import { createS3Storage } from 'src/utils/aws-s3.config';
 
 @Controller('custom-design')
 export class CustomDesignController {
@@ -59,13 +63,20 @@ export class CustomDesignController {
   // ---------------------------------------------------------------------------
   @Post()
   @UseGuards(UserAuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: createS3Storage('custom-designs'),
+      limits: { fileSize: 50 * 1024 * 1024 },
+    }),
+  )
   async createAndSubmit(
     @Request() req,
     @Body() dto: SubmitCustomDesignDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const userId: string = req.userId;
     const agentId: string | undefined = req.agentId ?? undefined;
-    return this.service.createAndSubmit(userId, dto, agentId);
+    return this.service.createAndSubmit(userId, dto, agentId, files);
   }
 
   // ---------------------------------------------------------------------------
@@ -134,13 +145,20 @@ export class CustomDesignController {
   // ---------------------------------------------------------------------------
   @Patch(':id/step')
   @UseGuards(UserAuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: createS3Storage('custom-designs'),
+      limits: { fileSize: 50 * 1024 * 1024 },
+    }),
+  )
   async saveStep(
     @Request() req,
     @Param('id') id: string,
     @Body() dto: SaveStepDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const userId: string = req.userId;
-    return this.service.saveStep(id, userId, dto);
+    return this.service.saveStep(id, userId, dto, files);
   }
 
   // ---------------------------------------------------------------------------
@@ -151,13 +169,20 @@ export class CustomDesignController {
   @Post(':id/submit')
   @UseGuards(UserAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: createS3Storage('custom-designs'),
+      limits: { fileSize: 50 * 1024 * 1024 },
+    }),
+  )
   async submit(
     @Request() req,
     @Param('id') id: string,
     @Body() dto?: Partial<SubmitCustomDesignDto>,
+    @UploadedFiles() files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const userId: string = req.userId;
-    return this.service.submit(id, userId, dto);
+    return this.service.submit(id, userId, dto, files);
   }
 
   // ---------------------------------------------------------------------------
@@ -180,13 +205,20 @@ export class CustomDesignController {
   // ---------------------------------------------------------------------------
   @Patch(':id')
   @UseGuards(UserAuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: createS3Storage('custom-designs'),
+      limits: { fileSize: 50 * 1024 * 1024 },
+    }),
+  )
   async update(
     @Request() req,
     @Param('id') id: string,
     @Body() dto: UpdateCustomDesignDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ): Promise<CustomDesignResponseDto> {
     const userId: string = req.userId;
-    return this.service.update(id, userId, dto);
+    return this.service.update(id, userId, dto, files);
   }
 
   // ---------------------------------------------------------------------------
