@@ -74,6 +74,15 @@ export class AgentProfile {
   @Column({ nullable: true })
   phoneNumber?: string;
 
+  @Column({ type: 'int', default: 0 })
+  viewsCount: number;
+
+  @Column({ type: 'int', default: 0 })
+  savesCount: number;
+
+  @Column({ type: 'int', default: 0 })
+  inquiriesCount: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

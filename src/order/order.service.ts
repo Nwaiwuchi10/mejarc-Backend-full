@@ -8,6 +8,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
+import { OrderItem } from './entities/order-item.entity';
 import { Repository, IsNull } from 'typeorm';
 import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
 import { User } from '../user/entities/user.entity';
@@ -24,7 +25,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, AWS_S3_BUCKET_NAME } from '../utils/aws-s3.config';
 import { Wallet } from '../wallet/entities/wallet.entity';
-import { WalletTransaction, TransactionType } from '../wallet/entities/wallet-transaction.entity';
+import { WalletTransaction, TransactionType, TransactionCategory } from '../wallet/entities/wallet-transaction.entity';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/entities/notification.entity';
 
@@ -36,6 +37,8 @@ export class OrderService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    @InjectRepository(OrderItem)
+    private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Admin)
     private readonly adminRepository: Repository<Admin>,
     @InjectRepository(MarketProduct)
@@ -102,9 +105,7 @@ export class OrderService {
 
     const newOrder = this.orderRepository.create({
       userId: userId || undefined,
-      orderItems: validatedOrderItems,
       grandTotal,
-
       redirect_url,
       billingInfo,
       payStackPayment: {
@@ -116,12 +117,24 @@ export class OrderService {
         amount: grandTotal,
         transactionStatus: 'pending',
         status: 'notPaid',
-        orderItems: validatedOrderItems,
+        orderItems: validatedOrderItems, // Keeping JSON snapshot for payment history
         metadata: paystackResponse.metadata,
       },
     });
 
     await this.orderRepository.save(newOrder);
+
+    // Create OrderItems
+    const orderItemsToSave = validatedOrderItems.map(item => {
+      const orderItem = new OrderItem();
+      orderItem.order = newOrder;
+      orderItem.productId = item.productId;
+      orderItem.totalQuantity = item.totalQuantity;
+      orderItem.totalPrice = item.totalPrice;
+      return orderItem;
+    });
+
+    await this.orderItemRepository.save(orderItemsToSave);
 
     try {
       await this.mailService.ConfirmOrder(
@@ -232,7 +245,7 @@ export class OrderService {
 
       const orderDetails = await this.orderRepository.findOne({
         where: { id: order.id },
-        relations: ['user'],
+        relations: ['user', 'orderItems', 'orderItems.product'],
       });
 
       // Handle payment splitting for agent products if we have orderItems
@@ -269,6 +282,7 @@ export class OrderService {
             // Create transaction record
             const transactionRecord = this.walletTransactionRepository.create({
               type: TransactionType.CREDIT,
+              category: TransactionCategory.PRODUCT_SALE,
               amount: agentShare,
               balanceAfter: wallet.balance,
               description: `Product Sale - ${product.title}`,
@@ -421,7 +435,7 @@ export class OrderService {
   async findOrderDetails(id: string) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
     if (!order) throw new BadRequestException(`Order with ${id} not found`);
 
@@ -438,7 +452,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
   }
 
@@ -452,7 +466,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
   }
 
@@ -466,7 +480,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
   }
 
@@ -480,7 +494,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
   }
 
@@ -494,7 +508,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
   }
 
@@ -508,7 +522,7 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
   }
 
@@ -516,14 +530,16 @@ export class OrderService {
     return this.findAllLoginUserOrderPagination(query, userId);
   }
 
-  findAll() {
-    return this.orderRepository.find({ relations: ['user'] });
+  async findAll() {
+    return this.orderRepository.find({
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+    });
   }
 
   async findOne(id: string) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
     });
     if (!order) throw new BadRequestException(`Order with ${id} not found`);
     return { order };

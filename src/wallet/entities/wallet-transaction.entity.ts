@@ -13,6 +13,13 @@ export enum TransactionType {
     DEBIT = 'Debit',
 }
 
+export enum TransactionCategory {
+    PRODUCT_SALE = 'Product Sale',
+    CUSTOM_DESIGN = 'Custom Design',
+    WITHDRAWAL = 'Withdrawal',
+    OTHER = 'Other',
+}
+
 @Entity('wallet_transactions')
 export class WalletTransaction {
     @PrimaryGeneratedColumn('uuid')
@@ -29,6 +36,9 @@ export class WalletTransaction {
 
     @Column({ type: 'text' })
     description: string;
+
+    @Column({ type: 'enum', enum: TransactionCategory, default: TransactionCategory.OTHER })
+    category: TransactionCategory;
 
     @ManyToOne(() => Wallet, (wallet) => wallet.transactions, { onDelete: 'CASCADE' })
     wallet: Wallet;

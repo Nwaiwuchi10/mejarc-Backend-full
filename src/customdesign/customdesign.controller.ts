@@ -36,6 +36,7 @@ import {
 import { ServiceType } from './customdesign.types';
 import { UserAuthGuard } from 'src/user/guard/user.guard';
 import { createS3Storage } from 'src/utils/aws-s3.config';
+import { SetAgreedPriceDto } from './dto/set-agreed-price.dto';
 
 @Controller('custom-design')
 export class CustomDesignController {
@@ -256,5 +257,57 @@ export class CustomDesignController {
     @Body() dto?: ReviewCustomDesignDto,
   ): Promise<CustomDesignResponseDto> {
     return this.service.reject(id, dto?.notes);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PAYMENT FLOW ENDPOINTS
+  // ---------------------------------------------------------------------------
+
+  @Post(':id/agreed-price')
+  @UseGuards(UserAuthGuard)
+  async setAgreedPrice(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: SetAgreedPriceDto,
+  ) {
+    const userId = req.userId;
+    return this.service.setAgreedPrice(id, userId, dto);
+  }
+
+  @Post(':id/confirm-price')
+  @UseGuards(UserAuthGuard)
+  async confirmAgreedPrice(
+    @Request() req,
+    @Param('id') id: string,
+  ) {
+    const userId = req.userId;
+    return this.service.confirmAgreedPrice(id, userId);
+  }
+
+  @Post(':id/initialize-payment')
+  @UseGuards(UserAuthGuard)
+  async initializePayment(
+    @Request() req,
+    @Param('id') id: string,
+  ) {
+    const userId = req.userId;
+    return this.service.initializePayment(id, userId);
+  }
+
+  @Get('verify-payment')
+  async verifyPayment(@Query('reference') reference: string) {
+    return this.service.verifyPayment(reference);
+  }
+
+  // ===== LEGACY ENDPOINT =====
+
+  /**
+   * POST /agent (legacy)
+   * Create agent - for backward compatibility
+   */
+  @Post()
+  async create(@Body() dto: any) {
+    // This seems to be a placeholder or legacy
+    return { message: 'Legacy endpoint' };
   }
 }

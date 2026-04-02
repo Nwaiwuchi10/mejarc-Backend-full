@@ -5,9 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { OrderItem } from './order-item.entity';
+
 export enum PaymentStatus {
   paid = 'paid',
   notPaid = 'not paid',
@@ -41,8 +44,8 @@ export class Order {
   @Column({ nullable: true })
   paymentMethod: string;
 
-  @Column({ type: 'jsonb', nullable: true })
-  orderItems: any[];
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
+  orderItems: OrderItem[];
 
   @Column({ type: 'jsonb', nullable: true })
   billingInfo: BillingInfo;

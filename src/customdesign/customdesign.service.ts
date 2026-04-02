@@ -25,13 +25,32 @@ import {
 } from './dto/customdesign.dto';
 import { ServiceType, CustomDesignStatus, SelectionMethod } from './customdesign.types';
 import { getServiceConfig } from './config/services.config';
+import { CustomDesignPayment, CustomDesignPaymentStatus } from './entities/custom-design-payment.entity';
+import { SetAgreedPriceDto } from './dto/set-agreed-price.dto';
+import { WalletService } from '../wallet/wallet.service';
+import { TransactionCategory } from '../wallet/entities/wallet-transaction.entity';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
+import { Admin } from '../admin/entities/admin.entity';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 @Injectable()
 export class CustomDesignService {
+  private readonly PAYSTACK_INIT_URL = 'https://api.paystack.co/transaction/initialize';
+  private readonly PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
+
   constructor(
     @InjectRepository(CustomDesign)
     private readonly repo: Repository<CustomDesign>,
-  ) {}
+    @InjectRepository(CustomDesignPayment)
+    private readonly paymentRepo: Repository<CustomDesignPayment>,
+    @InjectRepository(Admin)
+    private readonly adminRepo: Repository<Admin>,
+    private readonly walletService: WalletService,
+    private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
+  ) { }
 
   // ---------------------------------------------------------------------------
   // CREATE — Wizard: Step 1 only (initialize a draft)
@@ -656,5 +675,195 @@ export class CustomDesignService {
       createdAt: design.createdAt,
       updatedAt: design.updatedAt,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // PAYMENT FLOW
+  // ---------------------------------------------------------------------------
+
+  async setAgreedPrice(id: string, userId: string, dto: SetAgreedPriceDto) {
+    const design = await this.getOwnedDesign(id, userId);
+
+    if (design.status !== CustomDesignStatus.APPROVED) {
+      throw new BadRequestException('Can only set agreed price for approved designs');
+    }
+
+    if (!design.agentId) {
+      throw new BadRequestException('No agent assigned to this custom design');
+    }
+
+    let payment = await this.paymentRepo.findOne({ where: { customDesignId: id } });
+    if (payment && payment.status === CustomDesignPaymentStatus.PAID) {
+      throw new BadRequestException('This design has already been paid for');
+    }
+
+    if (!payment) {
+      payment = this.paymentRepo.create({
+        customDesignId: id,
+        userId,
+        agreedPrice: dto.price,
+        status: CustomDesignPaymentStatus.PENDING_AGREEMENT,
+      });
+    } else {
+      payment.agreedPrice = dto.price;
+      payment.status = CustomDesignPaymentStatus.PENDING_AGREEMENT;
+      payment.isConfirmedByAgent = false;
+    }
+
+    await this.paymentRepo.save(payment);
+
+    // Notify Agent
+    const agent = await this.repo.manager.findOne('Agent', {
+      where: { id: design.agentId },
+      relations: ['user']
+    }) as any;
+
+    if (agent?.user) {
+      await this.notificationService.createNotification(
+        agent.user.id,
+        NotificationType.WALLET,
+        'Price Agreement Requested',
+        `User has set an agreed price of ₦${dto.price} for Custom Design ${id}. Please confirm.`,
+        { customDesignId: id, price: dto.price }
+      );
+    }
+
+    // Notify Admin
+    const admins = await this.adminRepo.find({ relations: ['user'] });
+    for (const admin of admins) {
+      if (admin.user) {
+        await this.notificationService.createNotification(
+          admin.user.id,
+          NotificationType.WALLET,
+          'Price Agreement Update',
+          `An agreed price of ₦${dto.price} has been set for Custom Design ${id}.`,
+          { customDesignId: id, price: dto.price }
+        );
+      }
+    }
+
+    return { message: 'Agreed price set. Waiting for agent confirmation.', payment };
+  }
+
+  async confirmAgreedPrice(id: string, agentUserId: string) {
+    const design = await this.repo.findOne({ where: { id }, relations: ['agent', 'agent.user'] });
+    if (!design) throw new NotFoundException('Custom design not found');
+
+    if (design.agent?.userId !== agentUserId) {
+      throw new ForbiddenException('Only the assigned agent can confirm the price');
+    }
+
+    const payment = await this.paymentRepo.findOne({ where: { customDesignId: id } });
+    if (!payment) throw new NotFoundException('Price hasn\'t been set by the user yet');
+
+    payment.isConfirmedByAgent = true;
+    payment.status = CustomDesignPaymentStatus.AWAITING_PAYMENT;
+    await this.paymentRepo.save(payment);
+
+    // Notify User
+    await this.notificationService.createNotification(
+      design.userId,
+      NotificationType.WALLET,
+      'Price Agreement Confirmed',
+      `The agent has confirmed the agreed price of ₦${payment.agreedPrice}. You can now proceed to payment.`,
+      { customDesignId: id, price: payment.agreedPrice }
+    );
+
+    return { message: 'Price confirmed. User can now pay.', payment };
+  }
+
+  async initializePayment(id: string, userId: string) {
+    const payment = await this.paymentRepo.findOne({
+      where: { customDesignId: id, userId },
+      relations: ['user']
+    });
+
+    if (!payment) throw new NotFoundException('Payment record not found');
+    if (!payment.isConfirmedByAgent) {
+      throw new BadRequestException('Agent has not confirmed the agreed price yet');
+    }
+    if (payment.status === CustomDesignPaymentStatus.PAID) {
+      throw new BadRequestException('This design is already paid');
+    }
+
+    const amountInKobo = Math.round(Number(payment.agreedPrice) * 100);
+    const callbackUrl = this.configService.get<string>('PAYSTACK_CALLBACK_URL') || 'http://localhost:3000/custom-design/verify-payment';
+
+    try {
+      const response = await axios.post(
+        this.PAYSTACK_INIT_URL,
+        {
+          email: payment.user.email,
+          amount: amountInKobo,
+          callback_url: callbackUrl,
+          metadata: {
+            customDesignId: id,
+            paymentId: payment.id,
+            type: 'custom_design_payment'
+          }
+        },
+        {
+          headers: { Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}` }
+        }
+      );
+
+      payment.paystackData = response.data.data;
+      await this.paymentRepo.save(payment);
+
+      return response.data.data;
+    } catch (error) {
+      throw new BadRequestException('Failed to initialize Paystack payment: ' + (error.response?.data?.message || error.message));
+    }
+  }
+
+  async verifyPayment(reference: string) {
+    try {
+      const response = await axios.get(`${this.PAYSTACK_VERIFY_URL}/${reference}`, {
+        headers: { Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}` },
+      });
+
+      const data = response.data.data;
+      if (data.status !== 'success') throw new BadRequestException('Payment verification failed.');
+
+      const paymentRecord = await this.paymentRepo.createQueryBuilder('p')
+        .leftJoinAndSelect('p.customDesign', 'cd')
+        .leftJoinAndSelect('cd.agent', 'agent')
+        .leftJoinAndSelect('agent.user', 'user')
+        .where(`p.paystackData->>'reference' = :reference`, { reference })
+        .getOne();
+
+      if (!paymentRecord) throw new BadRequestException(`Payment with reference ${reference} not found.`);
+      if (paymentRecord.status === CustomDesignPaymentStatus.PAID) return { message: 'Already verified', payment: paymentRecord };
+
+      const amountPaid = data.amount / 100;
+      paymentRecord.status = CustomDesignPaymentStatus.PAID;
+      paymentRecord.amountPaid = amountPaid;
+      paymentRecord.paidAt = new Date();
+      await this.paymentRepo.save(paymentRecord);
+
+      // 10% commission logic
+      if (paymentRecord.customDesign?.agentId) {
+        const agentShare = amountPaid * 0.90;
+        const description = `Custom Design Completion: ${paymentRecord.customDesign.serviceContext}`;
+
+        await this.walletService.creditWallet(
+          paymentRecord.customDesign.agentId,
+          agentShare,
+          description,
+          TransactionCategory.CUSTOM_DESIGN
+        );
+      }
+
+      // Update Custom Design Status to COMPLETED
+      paymentRecord.customDesign.status = CustomDesignStatus.COMPLETED;
+      await this.repo.save(paymentRecord.customDesign);
+
+      return {
+        message: 'Payment verified and agent credited',
+        payment: paymentRecord
+      };
+    } catch (error) {
+      throw new BadRequestException('Verification failed: ' + error.message);
+    }
   }
 }

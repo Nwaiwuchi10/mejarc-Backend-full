@@ -13,14 +13,18 @@ import {
   UploadedFiles,
   UseInterceptors,
   Query,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { AgentService } from './agent.service';
+import { AgentAnalyticsService } from './agent-analytics.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateAgentProfileDto } from './dto/create-agent-profile.dto';
 import { CreateAgentBioDto } from './dto/create-agent-bio.dto';
 import { CreateAgentKycDto } from './dto/create-agent-kyc.dto';
 import { PaginationDto } from '../utils/pagination.dto';
+import { UserAuthGuard } from '../user/guard/user.guard';
 
 import {
   FileInterceptor,
@@ -31,7 +35,17 @@ import * as multerS3 from 'multer-s3';
 
 @Controller('agent')
 export class AgentController {
-  constructor(private readonly agentService: AgentService) { }
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly analyticsService: AgentAnalyticsService,
+  ) { }
+
+  @Get('analytics')
+  @UseGuards(UserAuthGuard)
+  getAnalytics(@Req() req) {
+    const userId = req.userId;
+    return this.analyticsService.getDashboardAnalytics(userId);
+  }
 
   /**
    * POST /agent/initialize/:userId

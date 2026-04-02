@@ -11,12 +11,15 @@ import { MailService } from './Services/mail.service';
 import { Wallet } from '../wallet/entities/wallet.entity';
 import { WalletTransaction } from '../wallet/entities/wallet-transaction.entity';
 
+import { OrderItem } from './entities/order-item.entity';
+
 import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Order,
+      OrderItem,
       User,
       MarketProduct,
       Admin,

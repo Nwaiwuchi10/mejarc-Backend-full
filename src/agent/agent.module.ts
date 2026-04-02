@@ -9,6 +9,12 @@ import { AgentKyc } from './entities/agent-kyc.entity';
 import { User } from '../user/entities/user.entity';
 import { Admin } from '../admin/entities/admin.entity';
 import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
+import { CustomDesign } from '../customdesign/entities/customdesign.entity';
+import { Wallet } from '../wallet/entities/wallet.entity';
+import { WalletTransaction } from '../wallet/entities/wallet-transaction.entity';
+import { WithdrawalRequest } from '../wallet/entities/withdrawal-request.entity';
+import { Notification } from '../notification/entities/notification.entity';
+import { AgentAnalyticsService } from './agent-analytics.service';
 
 import { MulterModule } from '@nestjs/platform-express';
 import { UverifyKycProvider } from './provider/uverify.provider';
@@ -27,12 +33,17 @@ import { NotificationModule } from '../notification/notification.module';
       User,
       Admin,
       MarketProduct,
+      CustomDesign,
+      Wallet,
+      WalletTransaction,
+      WithdrawalRequest,
+      Notification,
     ]),
     UserModule,
     NotificationModule,
   ],
   controllers: [AgentController],
-  providers: [AgentService, UverifyKycProvider, AgentMailService],
-  exports: [AgentService, AgentMailService],
+  providers: [AgentService, UverifyKycProvider, AgentMailService, AgentAnalyticsService],
+  exports: [AgentService, AgentMailService, AgentAnalyticsService],
 })
 export class AgentModule {}
