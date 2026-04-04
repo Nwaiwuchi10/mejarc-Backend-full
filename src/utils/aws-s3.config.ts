@@ -45,6 +45,7 @@ export function createS3Storage(keyPrefix: string) {
     s3: s3Client as any,
     bucket: AWS_S3_BUCKET_NAME,
     acl: 'public-read',
+    contentType: (multerS3 as any).AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const sanitized = file.originalname
         .replace(/\s+/g, '')

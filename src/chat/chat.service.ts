@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -10,6 +12,7 @@ import { Message } from './entities/message.entity';
 import { ConversationMember } from './entities/conversation-member.entity';
 import { User } from '../user/entities/user.entity';
 import { PaginationDto } from '../utils/pagination.dto';
+import { ChatGateway } from './gateway/chat.gateway';
 
 @Injectable()
 export class ChatService {
@@ -22,6 +25,8 @@ export class ChatService {
     private readonly memberRepo: Repository<ConversationMember>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   /**
@@ -72,7 +77,12 @@ export class ChatService {
 
     await this.memberRepo.save([member1, member2]);
 
-    return this.getConversationDetails(savedConversation.id);
+    const conversationDetails = await this.getConversationDetails(savedConversation.id);
+    
+    // Notify participants about the new conversation
+    this.chatGateway.emitNewConversation(conversationDetails);
+
+    return conversationDetails;
   }
 
   /**
@@ -82,6 +92,7 @@ export class ChatService {
     conversationId: string,
     authorId: string,
     text: string,
+    attachments: string[] = [],
   ): Promise<Message> {
     const conversation = await this.conversationRepo.findOne({
       where: { id: conversationId },
@@ -103,6 +114,7 @@ export class ChatService {
       conversation,
       author: { id: authorId } as User,
       text,
+      attachments,
     });
     const savedMessage = await this.messageRepo.save(message);
 
@@ -119,6 +131,9 @@ export class ChatService {
       .where('conversationId = :cid', { cid: conversationId })
       .andWhere('userId != :uid', { uid: authorId })
       .execute();
+
+    // Notify via WebSocket
+    this.chatGateway.emitNewMessage(savedMessage, conversationId);
 
     return savedMessage;
   }
@@ -200,10 +215,14 @@ export class ChatService {
       { conversation: { id: conversationId }, user: { id: userId } },
       { unreadCount: 0 },
     );
+
+    // Notify user's other devices about updated unread count
+    this.chatGateway.emitUnreadCount(userId);
+
     return { success: true };
   }
 
-  private async getConversationDetails(id: string): Promise<Conversation> {
+  async getConversationDetails(id: string): Promise<Conversation> {
     const conv = await this.conversationRepo.findOne({
       where: { id },
       relations: ['members', 'members.user', 'lastMessage'],

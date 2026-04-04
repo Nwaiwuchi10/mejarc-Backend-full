@@ -270,7 +270,10 @@ export class CustomDesignService {
   // ---------------------------------------------------------------------------
 
   async findById(id: string): Promise<CustomDesignResponseDto> {
-    const design = await this.repo.findOne({ where: { id }, relations: ['user', 'agent'] });
+    const design = await this.repo.findOne({
+      where: { id },
+      relations: ['user', 'agent', 'agent.user'],
+    });
     if (!design) throw new NotFoundException('Custom design not found');
     return this.toResponse(design);
   }
@@ -640,6 +643,9 @@ export class CustomDesignService {
 
     const total = await qb.getCount();
     const data = await qb
+      .leftJoinAndSelect('cd.user', 'user')
+      .leftJoinAndSelect('cd.agent', 'agent')
+      .leftJoinAndSelect('agent.user', 'agentUser')
       .orderBy('cd.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
@@ -653,7 +659,9 @@ export class CustomDesignService {
     return {
       id: design.id,
       userId: design.userId,
+      user: design.user,
       agentId: design.agentId,
+      agent: design.agent,
       serviceType: design.serviceType,
       selectionMethod: design.selectionMethod ?? SelectionMethod.MANUAL,
       serviceContext: design.serviceContext,

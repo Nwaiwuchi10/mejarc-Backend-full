@@ -25,6 +25,9 @@ export class Message {
   @Column({ type: 'text' })
   text: string;
 
+  @Column({ type: 'simple-array', nullable: true })
+  attachments: string[];
+
   @Column({ default: false })
   isRead: boolean;
 

@@ -10,7 +10,9 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from '../chat.service';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
+import { Message } from '../entities/message.entity';
+import { Conversation } from '../entities/conversation.entity';
 
 @WebSocketGateway({
   cors: {
@@ -25,6 +27,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
   ) {}
 
@@ -72,37 +75,74 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!userId) return;
 
     try {
-      const message = await this.chatService.sendMessage(
+      // The service will automatically trigger emitNewMessage
+      await this.chatService.sendMessage(
         data.conversationId,
         userId,
         data.text,
       );
-
-      // Notify all members of the conversation
-      // We need to fetch members to know who to notify
-      const conversation = await (this.chatService as any).getConversationDetails(data.conversationId);
-      
-      const payload = {
-        id: message.id,
-        conversationId: data.conversationId,
-        authorId: userId,
-        text: message.text,
-        createdAt: message.createdAt,
-      };
-
-      for (const member of conversation.members) {
-        this.server.to(`user:${member.user.id}`).emit('message:new', payload);
-        
-        // Update unread count for others
-        if (member.user.id !== userId) {
-            const inbox = await this.chatService.getInbox(member.user.id);
-            const totalUnread = inbox.reduce((sum, item) => sum + item.unreadCount, 0);
-            this.server.to(`user:${member.user.id}`).emit('chat:unreadCount', { total: totalUnread });
-        }
-      }
-
     } catch (e) {
       client.emit('error', { message: e.message });
+    }
+  }
+
+  // === Helper methods for Service-to-Gateway communication ===
+
+  /**
+   * Emits a new message to all participants in a conversation.
+   * Also updates their unread counts.
+   */
+  async emitNewMessage(message: Message, conversationId: string) {
+    const conversation = await this.chatService.getConversationDetails(
+      conversationId,
+    );
+
+    const payload = {
+      id: message.id,
+      conversationId: conversationId,
+      authorId: message.author.id,
+      text: message.text,
+      attachments: message.attachments,
+      createdAt: message.createdAt,
+    };
+
+    for (const member of conversation.members) {
+      this.server.to(`user:${member.user.id}`).emit('message:new', payload);
+
+      // Notify others about unread count increase
+      if (member.user.id !== message.author.id) {
+        await this.emitUnreadCount(member.user.id);
+      }
+    }
+  }
+
+  /**
+   * Emits the current unread count to a specific user.
+   */
+  async emitUnreadCount(userId: string) {
+    const inbox = await this.chatService.getInbox(userId);
+    const totalUnread = inbox.reduce((sum, item) => sum + item.unreadCount, 0);
+    this.server.to(`user:${userId}`).emit('chat:unreadCount', {
+      total: totalUnread,
+    });
+  }
+
+  /**
+   * Notifies participants about a new conversation or DM.
+   */
+  async emitNewConversation(conversation: Conversation) {
+    for (const member of conversation.members) {
+      this.server.to(`user:${member.user.id}`).emit('conversation:new', {
+        id: conversation.id,
+        type: conversation.type,
+        members: conversation.members.map((m) => ({
+          userId: m.user.id,
+          firstName: m.user.firstName,
+          lastName: m.user.lastName,
+          profilePics: m.user.profilePics,
+        })),
+        createdAt: conversation.createdAt,
+      });
     }
   }
 

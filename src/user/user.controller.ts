@@ -8,6 +8,8 @@ import {
   Delete,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -15,6 +17,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginRequestDto, VerifyLoginTokenDto } from './dto/login.dto';
 import { PaginationDto } from '../utils/pagination.dto';
 import { Query } from '@nestjs/common';
+import { UserAuthGuard } from './guard/user.guard';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AWS_S3_BUCKET_NAME, s3Client } from 'src/utils/aws-s3.config';
@@ -101,13 +104,42 @@ export class UserController {
     return this.userService.findOne(id);
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-  //   return this.userService.update(+id, updateUserDto);
-  // }
-
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.userService.remove(id);
+  }
+
+  /**
+   * PATCH /user/profile
+   * Updates the profile of the currently logged-in user.
+   * Supports profile picture upload and nested address updates.
+   */
+  @Patch('profile')
+  @UseGuards(UserAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('imgFile', {
+      storage: multerS3({
+        s3: s3Client as any,
+        bucket: AWS_S3_BUCKET_NAME,
+        acl: 'public-read',
+        contentType: multerS3.AUTO_CONTENT_TYPE,
+        key: (req, file, cb) => {
+          const sanitized = file.originalname
+            .replace(/\s+/g, '')
+            .replace(/[^a-zA-Z0-9.-]/g, '');
+          cb(null, `user-profile-pics/${Date.now()}-${sanitized}`);
+        },
+      }),
+      limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+    }),
+  )
+  async updateProfile(
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('dto') dto: string,
+  ) {
+    const userId = req.userId;
+    const parsedDto = dto ? JSON.parse(dto) : {};
+    return this.userService.update(userId, parsedDto, file);
   }
 }

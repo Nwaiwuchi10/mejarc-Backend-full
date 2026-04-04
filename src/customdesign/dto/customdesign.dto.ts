@@ -206,7 +206,9 @@ export class ReviewCustomDesignDto {
 export class CustomDesignResponseDto {
   id: string;
   userId: string;
+  user?: any;
   agentId?: string;
+  agent?: any;
 
   serviceType: ServiceType;
   selectionMethod: SelectionMethod;

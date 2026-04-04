@@ -289,6 +289,49 @@ export class UserService {
 
     return { message: `User with ID ${id} has been removed` };
   }
+
+  async update(id: string, dto: UpdateUserDto, file?: Express.Multer.File) {
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: ['address'],
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // === Handle profile image update if a new one is uploaded ===
+    if (file) {
+      const uploadedFile = file as Express.Multer.File & {
+        location?: string;
+      };
+      if (uploadedFile.location) {
+        user.profilePics = uploadedFile.location;
+      }
+    }
+
+    // === Handle nested address update ===
+    if (dto.address) {
+      if (user.address) {
+        // Update existing address fields
+        Object.assign(user.address, dto.address);
+      } else {
+        // Create a new address if the user didn't have one
+        user.address = this.addressRepo.create(dto.address);
+      }
+    }
+
+    // === Update basic fields ===
+    const { address, ...basicInfo } = dto;
+    Object.assign(user, basicInfo);
+
+    // === Sync the full name if names were updated ===
+    if (dto.firstName || dto.lastName) {
+      user.name = `${user.firstName || user.lastName ? (user.firstName || '') + ' ' + (user.lastName || '') : user.name}`.trim();
+    }
+
+    return this.userRepo.save(user);
+  }
   async findAll(paginationDto: PaginationDto) {
     const { page = 1, limit = 10, search } = paginationDto;
     const skip = (page - 1) * limit;
