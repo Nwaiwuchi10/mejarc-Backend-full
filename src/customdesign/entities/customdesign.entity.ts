@@ -18,11 +18,13 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Agent } from '../../agent/entities/agent.entity';
+import { CustomDesignPayment } from './custom-design-payment.entity';
 import {
   ServiceType,
   CustomDesignStatus,
   SelectionMethod,
 } from '../customdesign.types';
+import { OneToOne } from 'typeorm';
 
 @Entity('custom_designs')
 export class CustomDesign {
@@ -141,4 +143,7 @@ export class CustomDesign {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToOne(() => CustomDesignPayment, (payment) => payment.customDesign)
+  payment: CustomDesignPayment;
 }

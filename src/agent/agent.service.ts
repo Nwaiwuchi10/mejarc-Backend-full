@@ -469,7 +469,8 @@ export class AgentService {
         NotificationType.KYC,
         'Account Verified',
         'Your agent account was successfully verified by admin. You can now list products on the marketplace.',
-        { agentId: savedAgent.id }
+        { agentId: savedAgent.id },
+        'projectStatusChanged',
       );
     }
 
@@ -614,6 +615,7 @@ export class AgentService {
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
+      where: { registrationStatus: AgentRegistrationStatus.APPROVED },
       relations: ['user', 'profile'],
       order: { createdAt: 'DESC' },
       take: limit,
@@ -622,10 +624,10 @@ export class AgentService {
 
     if (search) {
       queryOptions.where = [
-        { businessName: Like(`%${search}%`) },
-        { user: { firstName: Like(`%${search}%`) } },
-        { user: { lastName: Like(`%${search}%`) } },
-        { user: { email: Like(`%${search}%`) } },
+        { registrationStatus: AgentRegistrationStatus.APPROVED, businessName: Like(`%${search}%`) },
+        { registrationStatus: AgentRegistrationStatus.APPROVED, user: { firstName: Like(`%${search}%`) } },
+        { registrationStatus: AgentRegistrationStatus.APPROVED, user: { lastName: Like(`%${search}%`) } },
+        { registrationStatus: AgentRegistrationStatus.APPROVED, user: { email: Like(`%${search}%`) } },
       ];
     }
 
@@ -763,7 +765,8 @@ export class AgentService {
         NotificationType.KYC,
         'Account Verified',
         'Your agent KYC has been verified.',
-        { agentId: savedAgent.id }
+        { agentId: savedAgent.id },
+        'projectStatusChanged',
       );
     }
 

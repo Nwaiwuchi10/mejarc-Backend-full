@@ -122,4 +122,52 @@ export class AgentAnalyticsService {
       }
     };
   }
+
+  async getProjectCounts(userId: string) {
+    const agent = await this.agentRepository.findOne({
+      where: { userId },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+
+    const agentId = agent.id;
+
+    const allProjects = await this.customDesignRepository.find({
+      where: { agentId },
+    });
+
+    return {
+      totalNewProjects: allProjects.filter(p => p.status === CustomDesignStatus.SUBMITTED).length,
+      totalInProgressProjects: allProjects.filter(p => p.status === CustomDesignStatus.APPROVED).length,
+      totalRevisionProjects: allProjects.filter(p => p.status === CustomDesignStatus.REVISION).length,
+      totalCompletedProjects: allProjects.filter(p => p.status === CustomDesignStatus.COMPLETED).length,
+    };
+  }
+
+  async getProjectsByCategory(userId: string) {
+    const agent = await this.agentRepository.findOne({
+      where: { userId },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+
+    const agentId = agent.id;
+
+    const allProjects = await this.customDesignRepository.find({
+      where: { agentId },
+      relations: ['user', 'agent', 'agent.user', 'payment'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      newProjects: allProjects.filter(p => p.status === CustomDesignStatus.SUBMITTED),
+      inProgressProjects: allProjects.filter(p => p.status === CustomDesignStatus.APPROVED),
+      revisionProjects: allProjects.filter(p => p.status === CustomDesignStatus.REVISION),
+      completedProjects: allProjects.filter(p => p.status === CustomDesignStatus.COMPLETED),
+    };
+  }
 }

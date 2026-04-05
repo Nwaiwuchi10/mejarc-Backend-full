@@ -9,7 +9,7 @@ import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
 import { MarketProduct, MarketProductStatus } from './entities/marketproduct.entity';
 import { Rating } from './entities/rating.entity';
-import { Agent } from '../agent/entities/agent.entity';
+import { Agent, AgentRegistrationStatus } from '../agent/entities/agent.entity';
 import { RateProductDto } from './dto/rate-product.dto';
 import { MarketProductMailService } from './service/mail.service';
 import { MarketProductFilterDto } from './dto/marketproduct-filter.dto';
@@ -46,6 +46,12 @@ export class MarketproductService {
 
     if (!agent) {
       throw new NotFoundException('Agent not found');
+    }
+
+    if (agent.registrationStatus !== AgentRegistrationStatus.APPROVED) {
+      throw new BadRequestException(
+        `Agent account is not approved. Current status: ${agent.registrationStatus}.`,
+      );
     }
 
     // 2. Map S3 URLs from uploaded files
@@ -241,7 +247,8 @@ export class MarketproductService {
           NotificationType.PRODUCT,
           'Product Approved',
           `Your product "${updatedProduct.title}" has been approved by admin.`,
-          { productId: updatedProduct.id }
+          { productId: updatedProduct.id },
+          'projectStatusChanged',
         );
       }
     }

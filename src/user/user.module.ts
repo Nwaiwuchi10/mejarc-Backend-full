@@ -6,10 +6,11 @@ import { UserAuthGuard } from './guard/user.guard';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UserAddress } from './entities/user-adress.entity';
+import { UserNotificationSetting } from './entities/user-notification-setting.entity';
 import { Agent } from '../agent/entities/agent.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, UserAddress, Agent])],
+  imports: [TypeOrmModule.forFeature([User, UserAddress, UserNotificationSetting, Agent])],
   controllers: [UserController],
   providers: [UserService, MailService, UserAuthGuard],
   exports: [MailService, UserAuthGuard, UserService],

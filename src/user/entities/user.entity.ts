@@ -13,6 +13,7 @@ import {
 } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { UserAddress } from './user-adress.entity';
+import { UserNotificationSetting } from './user-notification-setting.entity';
 
 export enum UserType {
   CUSTOMER = 'Customer',
@@ -84,6 +85,9 @@ export class User {
   @OneToOne(() => UserAddress, { cascade: true, eager: true })
   @JoinColumn()
   address?: UserAddress;
+
+  @OneToOne(() => UserNotificationSetting, (s) => s.user, { cascade: true, eager: true })
+  notificationSettings?: UserNotificationSetting;
 
   //   @ManyToOne(() => PricingPlan, { nullable: true })
   //   pricingPlan?: PricingPlan;

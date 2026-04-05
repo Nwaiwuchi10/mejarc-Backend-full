@@ -239,6 +239,9 @@ export class CustomDesignResponseDto {
   estimateTimeline?: string;
   estimateNotes?: string;
 
+  /** Associated payment details */
+  payment?: any;
+
   createdAt: Date;
   updatedAt: Date;
 }

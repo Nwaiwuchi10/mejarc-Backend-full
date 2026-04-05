@@ -47,6 +47,20 @@ export class AgentController {
     return this.analyticsService.getDashboardAnalytics(userId);
   }
 
+  @Get('project-counts')
+  @UseGuards(UserAuthGuard)
+  getProjectCounts(@Req() req) {
+    const userId = req.userId;
+    return this.analyticsService.getProjectCounts(userId);
+  }
+
+  @Get('projects')
+  @UseGuards(UserAuthGuard)
+  getProjects(@Req() req) {
+    const userId = req.userId;
+    return this.analyticsService.getProjectsByCategory(userId);
+  }
+
   /**
    * POST /agent/initialize/:userId
    * Initialize agent registration after user signup

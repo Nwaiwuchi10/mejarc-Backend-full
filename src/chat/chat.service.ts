@@ -13,6 +13,10 @@ import { ConversationMember } from './entities/conversation-member.entity';
 import { User } from '../user/entities/user.entity';
 import { PaginationDto } from '../utils/pagination.dto';
 import { ChatGateway } from './gateway/chat.gateway';
+import { NotificationService } from '../notification/notification.service';
+import { Admin } from '../admin/entities/admin.entity';
+import { Agent } from '../agent/entities/agent.entity';
+import { NotificationType } from '../notification/entities/notification.entity';
 
 @Injectable()
 export class ChatService {
@@ -25,8 +29,13 @@ export class ChatService {
     private readonly memberRepo: Repository<ConversationMember>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Admin)
+    private readonly adminRepo: Repository<Admin>,
+    @InjectRepository(Agent)
+    private readonly agentRepo: Repository<Agent>,
     @Inject(forwardRef(() => ChatGateway))
     private readonly chatGateway: ChatGateway,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -135,16 +144,44 @@ export class ChatService {
     // Notify via WebSocket
     this.chatGateway.emitNewMessage(savedMessage, conversationId);
 
+    // Notify via Persistent Notification (for Admin/Agent messages)
+    const authorAdmin = await this.adminRepo.findOne({ where: { userId: authorId } });
+    const authorAgent = await this.agentRepo.findOne({ where: { userId: authorId } });
+
+    if (authorAdmin || authorAgent) {
+      const otherMembers = conversation.members.filter((m) => m.user.id !== authorId);
+      for (const member of otherMembers) {
+        await this.notificationService.createNotification(
+          member.user.id,
+          authorAdmin ? NotificationType.ADMIN : NotificationType.AGENT_MESSAGE,
+          `New Message from ${authorAdmin ? 'Admin' : 'Agent'}`,
+          text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          { conversationId, messageId: savedMessage.id },
+          authorAdmin ? 'messagesAdmin' : 'messagesAgent',
+        );
+      }
+    }
+
     return savedMessage;
   }
 
   /**
    * Fetches the user's inbox (list of conversations).
    */
-  async getInbox(userId: string) {
+  async getInbox(userId: string, type?: ConversationType) {
+    const where: any = { user: { id: userId } };
+    if (type) {
+      where.conversation = { type };
+    }
+
     const memberships = await this.memberRepo.find({
-      where: { user: { id: userId } },
-      relations: ['conversation', 'conversation.lastMessage', 'conversation.members', 'conversation.members.user'],
+      where,
+      relations: [
+        'conversation',
+        'conversation.lastMessage',
+        'conversation.members',
+        'conversation.members.user',
+      ],
       order: { conversation: { lastMessageAt: 'DESC' } },
     });
 

@@ -18,6 +18,7 @@ import { LoginRequestDto, VerifyLoginTokenDto } from './dto/login.dto';
 import { PaginationDto } from '../utils/pagination.dto';
 import { Query } from '@nestjs/common';
 import { UserAuthGuard } from './guard/user.guard';
+import { UpdateNotificationSettingsDto } from './dto/notification-settings.dto';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AWS_S3_BUCKET_NAME, s3Client } from 'src/utils/aws-s3.config';
@@ -141,5 +142,20 @@ export class UserController {
     const userId = req.userId;
     const parsedDto = dto ? JSON.parse(dto) : {};
     return this.userService.update(userId, parsedDto, file);
+  }
+
+  @Get('profile/notification-settings')
+  @UseGuards(UserAuthGuard)
+  async getNotificationSettings(@Req() req: any) {
+    return this.userService.getNotificationSettings(req.userId);
+  }
+
+  @Patch('profile/notification-settings')
+  @UseGuards(UserAuthGuard)
+  async updateNotificationSettings(
+    @Req() req: any,
+    @Body() dto: UpdateNotificationSettingsDto,
+  ) {
+    return this.userService.updateNotificationSettings(req.userId, dto);
   }
 }

@@ -24,6 +24,7 @@ import {
   CustomDesignResponseDto,
 } from './dto/customdesign.dto';
 import { ServiceType, CustomDesignStatus, SelectionMethod } from './customdesign.types';
+import { AgentRegistrationStatus } from '../agent/entities/agent.entity';
 import { getServiceConfig } from './config/services.config';
 import { CustomDesignPayment, CustomDesignPaymentStatus } from './entities/custom-design-payment.entity';
 import { SetAgreedPriceDto } from './dto/set-agreed-price.dto';
@@ -61,6 +62,13 @@ export class CustomDesignService {
     dto: InitializeCustomDesignDto,
     agentId?: string,
   ): Promise<CustomDesignResponseDto> {
+    if (agentId) {
+      const agent = (await this.repo.manager.findOne('Agent', { where: { id: agentId } })) as any;
+      if (agent && agent.registrationStatus !== AgentRegistrationStatus.APPROVED) {
+        throw new BadRequestException('The selected agent is not currently approved to accept new projects.');
+      }
+    }
+
     dto.serviceType = this.mapCategoryToServiceType(dto.serviceType as any);
 
     const draft = this.repo.create({
@@ -210,6 +218,24 @@ export class CustomDesignService {
     }
 
     const saved = await this.repo.save(design);
+
+    if (files && files.length > 0 && design.agentId) {
+      const agent = (await this.repo.manager.findOne('Agent', {
+        where: { id: design.agentId },
+        relations: ['user'],
+      })) as any;
+      if (agent?.user) {
+        await this.notificationService.createNotification(
+          agent.user.id,
+          NotificationType.CUSTOMDESIGN,
+          'New File Uploaded',
+          `A new file was uploaded for project "${design.serviceContext}".`,
+          { customDesignId: id },
+          'projectFileUploaded',
+        );
+      }
+    }
+
     return this.toResponse(saved);
   }
 
@@ -262,6 +288,26 @@ export class CustomDesignService {
     design.currentStep = 6;
 
     const saved = await this.repo.save(design);
+
+    // Notify Admin
+    try {
+      const admins = await this.adminRepo.find({ relations: ['user'] });
+      for (const admin of admins) {
+        if (admin.user) {
+          await this.notificationService.createNotification(
+            admin.user.id,
+            NotificationType.ADMIN,
+            'New Custom Design Submission',
+            `A new custom design project "${design.serviceContext}" has been submitted.`,
+            { customDesignId: id },
+            'messagesAdmin',
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Failed to notify admins of submission:', err);
+    }
+
     return this.toResponse(saved);
   }
 
@@ -272,7 +318,7 @@ export class CustomDesignService {
   async findById(id: string): Promise<CustomDesignResponseDto> {
     const design = await this.repo.findOne({
       where: { id },
-      relations: ['user', 'agent', 'agent.user'],
+      relations: ['user', 'agent', 'agent.user', 'payment'],
     });
     if (!design) throw new NotFoundException('Custom design not found');
     return this.toResponse(design);
@@ -472,6 +518,17 @@ export class CustomDesignService {
     design.reviewedAt = new Date();
 
     const saved = await this.repo.save(design);
+
+    // Notify User
+    await this.notificationService.createNotification(
+      design.userId,
+      NotificationType.CUSTOMDESIGN,
+      'Project Approved',
+      `Your custom design project "${design.serviceContext}" has been approved.`,
+      { customDesignId: id, status: design.status },
+      'projectStatusChanged',
+    );
+
     return this.toResponse(saved);
   }
 
@@ -488,6 +545,83 @@ export class CustomDesignService {
     design.reviewedAt = new Date();
 
     const saved = await this.repo.save(design);
+
+    // Notify User
+    await this.notificationService.createNotification(
+      design.userId,
+      NotificationType.CUSTOMDESIGN,
+      'Project Rejected',
+      `Your custom design project "${design.serviceContext}" has been rejected. Reason: ${reason || 'N/A'}`,
+      { customDesignId: id, status: design.status },
+      'projectStatusChanged',
+    );
+
+    return this.toResponse(saved);
+  }
+
+  // ---------------------------------------------------------------------------
+  // AGENT: Approve / Reject (Assigned Project)
+  // ---------------------------------------------------------------------------
+
+  async agentApprove(id: string, userId: string, notes?: string): Promise<CustomDesignResponseDto> {
+    const design = await this.repo.findOne({ where: { id } });
+    if (!design) throw new NotFoundException('Custom design not found');
+
+    const agent = await this.repo.manager.findOne('Agent', { where: { userId } }) as any;
+    if (!agent) throw new ForbiddenException('Only registered agents can perform this action');
+    if (design.agentId !== agent.id) throw new ForbiddenException('You are not assigned to this project');
+
+    if (design.status !== CustomDesignStatus.SUBMITTED && design.status !== CustomDesignStatus.UNDER_REVIEW) {
+      throw new BadRequestException('Only submitted or under-review designs can be approved');
+    }
+
+    design.status = CustomDesignStatus.APPROVED;
+    design.reviewNotes = notes;
+    design.reviewedAt = new Date();
+
+    const saved = await this.repo.save(design);
+
+    // Notify User
+    await this.notificationService.createNotification(
+      design.userId,
+      NotificationType.CUSTOMDESIGN,
+      'Project Accepted by Agent',
+      `Your custom design project "${design.serviceContext}" has been accepted by the assigned agent.`,
+      { customDesignId: id, status: design.status },
+      'projectStatusChanged',
+    );
+
+    return this.toResponse(saved);
+  }
+
+  async agentReject(id: string, userId: string, reason?: string): Promise<CustomDesignResponseDto> {
+    const design = await this.repo.findOne({ where: { id } });
+    if (!design) throw new NotFoundException('Custom design not found');
+
+    const agent = await this.repo.manager.findOne('Agent', { where: { userId } }) as any;
+    if (!agent) throw new ForbiddenException('Only registered agents can perform this action');
+    if (design.agentId !== agent.id) throw new ForbiddenException('You are not assigned to this project');
+
+    if (design.status !== CustomDesignStatus.SUBMITTED && design.status !== CustomDesignStatus.UNDER_REVIEW) {
+      throw new BadRequestException('Only submitted or under-review designs can be rejected');
+    }
+
+    design.status = CustomDesignStatus.REJECTED;
+    design.reviewNotes = reason;
+    design.reviewedAt = new Date();
+
+    const saved = await this.repo.save(design);
+
+    // Notify User
+    await this.notificationService.createNotification(
+      design.userId,
+      NotificationType.CUSTOMDESIGN,
+      'Project Declined by Agent',
+      `Your custom design project "${design.serviceContext}" has been declined by the assigned agent. Reason: ${reason || 'N/A'}`,
+      { customDesignId: id, status: design.status },
+      'projectStatusChanged',
+    );
+
     return this.toResponse(saved);
   }
 
@@ -646,6 +780,7 @@ export class CustomDesignService {
       .leftJoinAndSelect('cd.user', 'user')
       .leftJoinAndSelect('cd.agent', 'agent')
       .leftJoinAndSelect('agent.user', 'agentUser')
+      .leftJoinAndSelect('cd.payment', 'payment')
       .orderBy('cd.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
@@ -680,6 +815,7 @@ export class CustomDesignService {
       estimateCost: design.estimateCost ? Number(design.estimateCost) : undefined,
       estimateTimeline: design.estimateTimeline,
       estimateNotes: design.estimateNotes,
+      payment: design.payment,
       createdAt: design.createdAt,
       updatedAt: design.updatedAt,
     };
@@ -729,10 +865,11 @@ export class CustomDesignService {
     if (agent?.user) {
       await this.notificationService.createNotification(
         agent.user.id,
-        NotificationType.WALLET,
+        NotificationType.AGENT_MESSAGE,
         'Price Agreement Requested',
-        `User has set an agreed price of ₦${dto.price} for Custom Design ${id}. Please confirm.`,
-        { customDesignId: id, price: dto.price }
+        `User has set an agreed price of ₦${dto.price} for a custom design project. Please confirm.`,
+        { customDesignId: id, price: dto.price },
+        'messagesAgent',
       );
     }
 
@@ -744,7 +881,7 @@ export class CustomDesignService {
           admin.user.id,
           NotificationType.WALLET,
           'Price Agreement Update',
-          `An agreed price of ₦${dto.price} has been set for Custom Design ${id}.`,
+          `An agreed price of ₦${dto.price} has been set for a custom design project.`,
           { customDesignId: id, price: dto.price }
         );
       }
@@ -761,6 +898,10 @@ export class CustomDesignService {
       throw new ForbiddenException('Only the assigned agent can confirm the price');
     }
 
+    if (design.agent?.registrationStatus !== AgentRegistrationStatus.APPROVED) {
+      throw new ForbiddenException('Your agent account is not currently approved to perform this action.');
+    }
+
     const payment = await this.paymentRepo.findOne({ where: { customDesignId: id } });
     if (!payment) throw new NotFoundException('Price hasn\'t been set by the user yet');
 
@@ -771,10 +912,11 @@ export class CustomDesignService {
     // Notify User
     await this.notificationService.createNotification(
       design.userId,
-      NotificationType.WALLET,
+      NotificationType.CUSTOMDESIGNPAYMENT,
       'Price Agreement Confirmed',
       `The agent has confirmed the agreed price of ₦${payment.agreedPrice}. You can now proceed to payment.`,
-      { customDesignId: id, price: payment.agreedPrice }
+      { customDesignId: id, price: payment.agreedPrice },
+      'paymentOrderConfirmation',
     );
 
     return { message: 'Price confirmed. User can now pay.', payment };
@@ -862,9 +1004,30 @@ export class CustomDesignService {
         );
       }
 
-      // Update Custom Design Status to COMPLETED
       paymentRecord.customDesign.status = CustomDesignStatus.COMPLETED;
       await this.repo.save(paymentRecord.customDesign);
+
+      // Notify User
+      await this.notificationService.createNotification(
+        paymentRecord.userId,
+        NotificationType.CUSTOMDESIGNPAYMENT,
+        'Payment Successful',
+        `Your payment of ₦${amountPaid} for custom design "${paymentRecord.customDesign.serviceContext}" was successful.`,
+        { customDesignId: paymentRecord.customDesignId },
+        'paymentSuccessful',
+      );
+
+      // Notify Agent
+      if (paymentRecord.customDesign.agentId && paymentRecord.customDesign.agent?.user) {
+        await this.notificationService.createNotification(
+          paymentRecord.customDesign.agent.user.id,
+          NotificationType.AGENT_MESSAGE,
+          'New Payment Received',
+          `You have received a payment for project "${paymentRecord.customDesign.serviceContext}".`,
+          { customDesignId: paymentRecord.customDesignId },
+          'messagesAgent',
+        );
+      }
 
       return {
         message: 'Payment verified and agent credited',

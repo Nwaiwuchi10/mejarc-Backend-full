@@ -15,6 +15,7 @@ export enum NotificationType {
     WALLET = 'wallet',
     WITHDRAWAL = 'withdrawal',
     ADMIN = 'admin',
+    AGENT_MESSAGE = 'agent_message',
     CUSTOMDESIGN = 'customdesign',
     PRODUCTPAYMENT = "productpayment",
     CUSTOMDESIGNPAYMENT = "customdesignpayment",

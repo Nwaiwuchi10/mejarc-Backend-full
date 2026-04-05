@@ -260,6 +260,36 @@ export class CustomDesignController {
   }
 
   // ---------------------------------------------------------------------------
+  // POST /custom-design/:id/agent-approve
+  // ---------------------------------------------------------------------------
+  @Post(':id/agent-approve')
+  @UseGuards(UserAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async agentApprove(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto?: ReviewCustomDesignDto,
+  ): Promise<CustomDesignResponseDto> {
+    const userId: string = req.userId;
+    return this.service.agentApprove(id, userId, dto?.notes);
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /custom-design/:id/agent-reject
+  // ---------------------------------------------------------------------------
+  @Post(':id/agent-reject')
+  @UseGuards(UserAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async agentReject(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto?: ReviewCustomDesignDto,
+  ): Promise<CustomDesignResponseDto> {
+    const userId: string = req.userId;
+    return this.service.agentReject(id, userId, dto?.notes);
+  }
+
+  // ---------------------------------------------------------------------------
   // PAYMENT FLOW ENDPOINTS
   // ---------------------------------------------------------------------------
 

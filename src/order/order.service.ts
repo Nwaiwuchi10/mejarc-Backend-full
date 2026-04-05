@@ -237,8 +237,9 @@ export class OrderService {
             admin.user.id,
             NotificationType.ORDER,
             'New Order Payment',
-            `Order ${order.id} has been paid successfully. Total: ₦${order.grandTotal}`,
-            { orderId: order.id }
+            `An order has been paid successfully. Total: ₦${order.grandTotal}`,
+            { orderId: order.id },
+            'messagesAdmin',
           );
         }
       }
@@ -297,14 +298,16 @@ export class OrderService {
                 NotificationType.PRODUCTPAYMENT,
                 'Product Sold',
                 `Your product "${product.title}" has been sold. ₦${agentShare} has been credited to your wallet.`,
-                { productId: product.id, orderId: order.id }
+                { productId: product.id, orderId: order.id },
+                'messagesAgent',
               );
               await this.notificationService.createNotification(
                 product.agent.user.id,
                 NotificationType.WALLET,
                 'Wallet Credited',
                 `₦${agentShare} has been added to your wallet from sale of "${product.title}".`,
-                { amount: agentShare }
+                { amount: agentShare },
+                'paymentSuccessful',
               );
             }
           }

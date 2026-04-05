@@ -16,6 +16,7 @@ import { UserAuthGuard } from '../user/guard/user.guard';
 import { PaginationDto } from '../utils/pagination.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { createS3Storage } from 'src/utils/aws-s3.config';
+import { ConversationType } from './entities/conversation.entity';
 
 @Controller('chat')
 @UseGuards(UserAuthGuard)
@@ -25,6 +26,11 @@ export class ChatController {
   @Get('inbox')
   async getInbox(@Request() req) {
     return this.chatService.getInbox(req.userId);
+  }
+
+  @Get('dm-inbox')
+  async getDMInbox(@Request() req) {
+    return this.chatService.getInbox(req.userId, ConversationType.DM);
   }
 
   @Post('start-dm/:recipientId')

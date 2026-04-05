@@ -30,6 +30,7 @@ export enum CustomDesignStatus {
   APPROVED = 'approved',
   REJECTED = 'rejected',
   COMPLETED = 'completed',
+  REVISION = 'revision',
 }
 
 export interface ServiceContextOption {

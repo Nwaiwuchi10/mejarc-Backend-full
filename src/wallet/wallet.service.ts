@@ -165,7 +165,8 @@ export class WalletService {
             NotificationType.WITHDRAWAL,
             'New Withdrawal Request',
             `Agent ${agent.user?.firstName || 'Unknown'} has requested ₦${withdrawalAmount}. Account: ${accountDetails}`,
-            { withdrawalId: savedRequest.id, amount: withdrawalAmount }
+            { withdrawalId: savedRequest.id, amount: withdrawalAmount },
+            'messagesAdmin',
           );
         }
       }
@@ -205,7 +206,8 @@ export class WalletService {
         NotificationType.WITHDRAWAL,
         'Withdrawal Approved',
         `Your withdrawal of ₦${request.amount} has been approved and credited.`,
-        { withdrawalId: request.id, amount: request.amount }
+        { withdrawalId: request.id, amount: request.amount },
+        'paymentSuccessful',
       );
     }
 
@@ -262,7 +264,8 @@ export class WalletService {
           NotificationType.WITHDRAWAL,
           'Withdrawal Rejected',
           `Your withdrawal of ₦${request.amount} was rejected. Reason: ${reason}. Funds have been reversed.`,
-          { withdrawalId: request.id, amount: request.amount }
+          { withdrawalId: request.id, amount: request.amount },
+          'paymentSuccessful',
         );
       }
 
@@ -324,7 +327,8 @@ export class WalletService {
         NotificationType.WALLET,
         'Wallet Credited',
         `₦${creditAmount} has been credited to your wallet for: ${description}`,
-        { amount: creditAmount }
+        { amount: creditAmount },
+        'paymentSuccessful',
       );
     }
 

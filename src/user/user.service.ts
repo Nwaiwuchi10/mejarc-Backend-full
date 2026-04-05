@@ -13,9 +13,11 @@ import { DataSource, Repository } from 'typeorm';
 import { UserAddress } from './entities/user-adress.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MailService } from './service/mail.service';
-import { Agent } from '../agent/entities/agent.entity';
+import { Agent, AgentRegistrationStatus } from '../agent/entities/agent.entity';
 import { PaginationDto } from '../utils/pagination.dto';
 import { Like } from 'typeorm';
+import { UserNotificationSetting } from './entities/user-notification-setting.entity';
+import { UpdateNotificationSettingsDto } from './dto/notification-settings.dto';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
@@ -29,6 +31,8 @@ export class UserService {
     private readonly addressRepo: Repository<UserAddress>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(UserNotificationSetting)
+    private readonly settingsRepo: Repository<UserNotificationSetting>,
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
   ) { }
@@ -88,6 +92,7 @@ export class UserService {
 
         profilePics,
         address,
+        notificationSettings: manager.create(UserNotificationSetting, {}),
       });
 
       const savedUser = await manager.save(User, user);
@@ -225,11 +230,22 @@ export class UserService {
 
     const updatedUser = await this.userRepo.save(user);
 
-    // === Detect agent role ===
+    // === Detect agent role and enforce approval ===
     const agentRecord = await this.agentRepo.findOne({
       where: { userId: updatedUser.id },
     });
+    
     const isAgent = !!agentRecord;
+    let isAgentApproved = false;
+
+    if (agentRecord) {
+      if (agentRecord.registrationStatus === AgentRegistrationStatus.REJECTED) {
+        throw new UnauthorizedException(
+          `Your agent account has been rejected. Reason: ${agentRecord.rejectionReason || 'Contact support'}.`,
+        );
+      }
+      isAgentApproved = agentRecord.registrationStatus === AgentRegistrationStatus.APPROVED;
+    }
 
     // === Send login success email ===
     try {
@@ -245,8 +261,8 @@ export class UserService {
       role: 'user',
     });
 
-    // Also issue agent token if user has an agent record
-    const agentToken = isAgent
+    // Also issue agent token ONLY if user is an APPROVED agent
+    const agentToken = (isAgent && isAgentApproved)
       ? this.jwtService.sign({
         userId: updatedUser.id,
         agentId: agentRecord!.id,
@@ -256,14 +272,17 @@ export class UserService {
 
     return {
       success: true,
-      message: 'Login successful',
+      message: isAgent && !isAgentApproved
+        ? 'Login successful as user. Agent features are awaiting approval.'
+        : 'Login successful',
       isAgent,
+      isAgentApproved,
       userId: updatedUser.id,
       agentId: agentRecord?.id,
-      role: isAgent ? 'agent' : 'user',
+      role: (isAgent && isAgentApproved) ? 'agent' : 'user',
       user: userDataWithoutPassword,
       userToken,
-      ...(isAgent && { agentToken }),
+      ...(agentToken && { agentToken }),
     };
   }
 
@@ -418,5 +437,22 @@ export class UserService {
     await this.userRepo.save(staff);
 
     return { message: 'Password successfully reset' };
+  }
+  async getNotificationSettings(userId: string) {
+    let settings = await this.settingsRepo.findOne({ where: { userId } });
+    if (!settings) {
+      settings = this.settingsRepo.create({ userId });
+      await this.settingsRepo.save(settings);
+    }
+    return settings;
+  }
+
+  async updateNotificationSettings(
+    userId: string,
+    dto: UpdateNotificationSettingsDto,
+  ) {
+    const settings = await this.getNotificationSettings(userId);
+    Object.assign(settings, dto);
+    return this.settingsRepo.save(settings);
   }
 }
