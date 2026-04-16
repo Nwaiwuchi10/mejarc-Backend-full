@@ -63,6 +63,20 @@ export interface StyleOption {
   description: string;
 }
 
+export enum MilestoneStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in-progress',
+  COMPLETED = 'completed',
+}
+
+export enum ActivityType {
+  UPLOAD = 'upload',
+  MESSAGE = 'message',
+  MILESTONE = 'milestone',
+  COMPLETED = 'completed',
+  REVISION = 'revision',
+}
+
 export interface ServiceConfig {
   serviceType: ServiceType;
   serviceName: string;

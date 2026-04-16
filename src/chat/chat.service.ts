@@ -11,12 +11,16 @@ import { Conversation, ConversationType } from './entities/conversation.entity';
 import { Message } from './entities/message.entity';
 import { ConversationMember } from './entities/conversation-member.entity';
 import { User } from '../user/entities/user.entity';
+import { UserNotificationSetting } from '../user/entities/user-notification-setting.entity';
 import { PaginationDto } from '../utils/pagination.dto';
 import { ChatGateway } from './gateway/chat.gateway';
 import { NotificationService } from '../notification/notification.service';
 import { Admin } from '../admin/entities/admin.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { NotificationType } from '../notification/entities/notification.entity';
+import { CustomDesign } from '../customdesign/entities/customdesign.entity';
+import { CustomDesignWorkspaceService } from '../customdesign/customdesign-workspace.service';
+import { ActivityType } from '../customdesign/customdesign.types';
 
 @Injectable()
 export class ChatService {
@@ -33,9 +37,13 @@ export class ChatService {
     private readonly adminRepo: Repository<Admin>,
     @InjectRepository(Agent)
     private readonly agentRepo: Repository<Agent>,
+    @InjectRepository(CustomDesign)
+    private readonly customDesignRepo: Repository<CustomDesign>,
     @Inject(forwardRef(() => ChatGateway))
     private readonly chatGateway: ChatGateway,
     private readonly notificationService: NotificationService,
+    @Inject(forwardRef(() => CustomDesignWorkspaceService))
+    private readonly workspaceService: CustomDesignWorkspaceService,
   ) {}
 
   /**
@@ -95,12 +103,101 @@ export class ChatService {
   }
 
   /**
+   * Starts or retrieves a conversation for a specific custom design.
+   */
+  async startCustomDesignChat(userId: string, customdesignId: string): Promise<Conversation> {
+    // Check if conversation already exists for this design
+    const existing = await this.conversationRepo.findOne({
+      where: { 
+        type: ConversationType.CUSTOMDESIGN,
+        customdesignId: customdesignId 
+      },
+    });
+
+    if (existing) {
+      return this.getConversationDetails(existing.id);
+    }
+
+    // Verify the custom design exists
+    const customDesign = await this.customDesignRepo.findOne({
+      where: { id: customdesignId },
+    });
+
+    if (!customDesign) {
+      throw new NotFoundException(`Custom design with ID ${customdesignId} not found`);
+    }
+
+    // Security check: Only the owner, the assigned agent, or an admin can access/start this chat
+    const isAdmin = await this.adminRepo.findOne({ where: { userId } });
+    const isOwner = customDesign.userId === userId;
+    const isAgent = customDesign.agentId && (await this.agentRepo.findOne({ where: { id: customDesign.agentId, userId } }));
+
+    if (!isAdmin && !isOwner && !isAgent) {
+      throw new BadRequestException('You do not have permission to access this chat');
+    }
+
+    // Create new conversation
+    const conversation = this.conversationRepo.create({
+      type: ConversationType.CUSTOMDESIGN,
+      customdesignId: customdesignId,
+    });
+    const savedConversation = await this.conversationRepo.save(conversation);
+
+    // Add members: the user who owns the design
+    const members: ConversationMember[] = [];
+    members.push(this.memberRepo.create({
+      conversation: savedConversation,
+      user: { id: customDesign.userId } as User,
+    }));
+
+    // If an agent is assigned, add them too
+    if (customDesign.agentId) {
+      // Find the agent's userId
+      const agent = await this.agentRepo.findOne({ where: { id: customDesign.agentId } });
+      if (agent && agent.userId) {
+        members.push(this.memberRepo.create({
+          conversation: savedConversation,
+          user: { id: agent.userId } as User,
+        }));
+      }
+    }
+
+    await this.memberRepo.save(members);
+
+    const conversationDetails = await this.getConversationDetails(savedConversation.id);
+    
+    // Notify participants
+    this.chatGateway.emitNewConversation(conversationDetails);
+
+    return conversationDetails;
+  }
+
+  /**
+   * Retrieves a conversation by its custom design ID.
+   */
+  async getConversationByCustomDesignId(customdesignId: string): Promise<Conversation> {
+    const conversation = await this.conversationRepo.findOne({
+      where: { 
+        type: ConversationType.CUSTOMDESIGN,
+        customdesignId: customdesignId 
+      },
+      relations: ['members', 'members.user', 'lastMessage'],
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(`No conversation found for custom design ID ${customdesignId}`);
+    }
+
+    return conversation;
+  }
+
+  /**
    * Sends a message in a conversation.
    */
   async sendMessage(
     conversationId: string,
     authorId: string,
-    text: string,
+    text: string = '',
     attachments: string[] = [],
   ): Promise<Message> {
     const conversation = await this.conversationRepo.findOne({
@@ -149,17 +246,30 @@ export class ChatService {
     const authorAgent = await this.agentRepo.findOne({ where: { userId: authorId } });
 
     if (authorAdmin || authorAgent) {
-      const otherMembers = conversation.members.filter((m) => m.user.id !== authorId);
+      const otherMembers = conversation.members.filter((m) => m.user?.id !== authorId);
       for (const member of otherMembers) {
+        if (!member.user) continue;
         await this.notificationService.createNotification(
           member.user.id,
-          authorAdmin ? NotificationType.ADMIN : NotificationType.AGENT_MESSAGE,
+          (authorAdmin ? NotificationType.ADMIN : NotificationType.AGENT_MESSAGE) as NotificationType,
           `New Message from ${authorAdmin ? 'Admin' : 'Agent'}`,
-          text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          (text || '').substring(0, 100) + ((text || '').length > 100 ? '...' : ''),
           { conversationId, messageId: savedMessage.id },
-          authorAdmin ? 'messagesAdmin' : 'messagesAgent',
+          (authorAdmin ? 'messagesAdmin' : 'messagesAgent') as keyof UserNotificationSetting,
         );
       }
+    }
+
+    // Log Activity for Custom Design Workspace
+    if (conversation.type === ConversationType.CUSTOMDESIGN && conversation.customdesignId) {
+      const authorType = authorAdmin ? 'Admin' : (authorAgent ? 'Agent' : 'Client');
+      await this.workspaceService.logActivity(
+        conversation.customdesignId,
+        authorId,
+        ActivityType.MESSAGE,
+        `${authorType} sent a message`,
+        `Message sent in project discussion.`,
+      );
     }
 
     return savedMessage;

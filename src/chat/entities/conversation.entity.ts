@@ -14,6 +14,7 @@ import { Message } from './message.entity';
 export enum ConversationType {
   DM = 'dm',
   GROUP = 'group',
+  CUSTOMDESIGN = 'customdesign',
 }
 
 @Entity('conversations')
@@ -27,6 +28,9 @@ export class Conversation {
     default: ConversationType.DM,
   })
   type: ConversationType;
+
+  @Column({ nullable: true })
+  customdesignId?: string;
 
   @Column({ nullable: true })
   name?: string;

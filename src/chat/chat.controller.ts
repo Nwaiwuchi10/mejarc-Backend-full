@@ -38,6 +38,19 @@ export class ChatController {
     return this.chatService.startDM(req.userId, recipientId);
   }
 
+  @Post('start-custom-design/:customdesignId')
+  async startCustomDesignChat(
+    @Request() req,
+    @Param('customdesignId') customdesignId: string,
+  ) {
+    return this.chatService.startCustomDesignChat(req.userId, customdesignId);
+  }
+
+  @Get('custom-design/:customdesignId')
+  async getByCustomDesignId(@Param('customdesignId') customdesignId: string) {
+    return this.chatService.getConversationByCustomDesignId(customdesignId);
+  }
+
   @Get('messages/:conversationId')
   async getMessages(
     @Request() req,
