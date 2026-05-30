@@ -20,7 +20,10 @@ import { AgentMailService } from '../agent/service/mail.service';
 import { MailService } from '../user/service/mail.service';
 import { PaginationDto } from '../utils/pagination.dto';
 import { Order } from '../order/entities/order.entity';
-import { MarketProduct, MarketProductStatus } from '../marketproduct/entities/marketproduct.entity';
+import {
+  MarketProduct,
+  MarketProductStatus,
+} from '../marketproduct/entities/marketproduct.entity';
 import { Conversation } from '../chat/entities/conversation.entity';
 import { Message } from '../chat/entities/message.entity';
 
@@ -33,14 +36,16 @@ export class AdminService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Agent) private agentRepo: Repository<Agent>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
-    @InjectRepository(MarketProduct) private marketProductRepo: Repository<MarketProduct>,
-    @InjectRepository(Conversation) private conversationRepo: Repository<Conversation>,
+    @InjectRepository(MarketProduct)
+    private marketProductRepo: Repository<MarketProduct>,
+    @InjectRepository(Conversation)
+    private conversationRepo: Repository<Conversation>,
     @InjectRepository(Message) private messageRepo: Repository<Message>,
     private readonly agentService: AgentService,
     private readonly agentMailService: AgentMailService,
     private readonly userMailService: MailService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   // ══════════════════════════════════════════
   // 1.  MAKE USER AN ADMIN
@@ -51,6 +56,7 @@ export class AdminService {
    * POST /admin/make-admin  { userId, role? }
    */
   async makeAdmin(userId: string, role?: string) {
+    this.validateUUID(userId, 'user ID');
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -236,6 +242,8 @@ export class AdminService {
    * Returns a single agent's full detail with all KYC records.
    */
   async getAgentDetail(agentId: string) {
+    this.validateUUID(agentId, 'agent ID');
+
     const agent = await this.agentRepo.findOne({
       where: { id: agentId },
       relations: ['user', 'profile', 'bioRecord', 'kycRecords'],
@@ -283,6 +291,7 @@ export class AdminService {
   }
 
   async findOne(id: string) {
+    this.validateUUID(id, 'admin ID');
     return this.adminRepo.findOne({ where: { id }, relations: ['user'] });
   }
 
@@ -292,6 +301,7 @@ export class AdminService {
   }
 
   async approveAgent(agentId: string) {
+    this.validateUUID(agentId, 'agent ID');
     const agent = await this.agentService.findOne(agentId);
     if (!agent) throw new NotFoundException('Agent not found');
     await this.agentService.update(agentId, {
@@ -307,12 +317,13 @@ export class AdminService {
           agent as any,
           true,
         );
-    } catch (e) { }
+    } catch (e) {}
 
     return { success: true };
   }
 
   async rejectAgent(agentId: string, reason?: string) {
+    this.validateUUID(agentId, 'agent ID');
     const agent = await this.agentService.findOne(agentId);
     if (!agent) throw new NotFoundException('Agent not found');
     await this.agentService.update(agentId, {
@@ -327,9 +338,23 @@ export class AdminService {
           agent as any,
           false,
         );
-    } catch (e) { }
+    } catch (e) {}
 
     return { success: true };
+  }
+
+  // ══════════════════════════════════════════
+  // PRIVATE HELPERS
+  // ══════════════════════════════════════════
+
+  private validateUUID(id: string, fieldName: string = 'ID'): void {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException(
+        `Invalid ${fieldName} format. Must be a valid UUID.`,
+      );
+    }
   }
 
   // ══════════════════════════════════════════
@@ -353,36 +378,36 @@ export class AdminService {
       // User info
       user: agent.user
         ? {
-          id: agent.user.id,
-          firstName: agent.user.firstName,
-          lastName: agent.user.lastName,
-          email: agent.user.email,
-          phoneNumber: agent.user.phoneNumber,
-        }
+            id: agent.user.id,
+            firstName: agent.user.firstName,
+            lastName: agent.user.lastName,
+            email: agent.user.email,
+            phoneNumber: agent.user.phoneNumber,
+          }
         : null,
       // Profile summary
       profile: agent.profile
         ? {
-          preferredTitle: agent.profile.preferredTitle,
-          licenseNumber: agent.profile.licenseNumber,
-          yearsOfExperience: agent.profile.yearsOfExperience,
-          specialization: agent.profile.specialization,
-          portfolioLink: agent.profile.portfolioLink,
-          profilePicture: agent.profile.profilePicture,
-        }
+            preferredTitle: agent.profile.preferredTitle,
+            licenseNumber: agent.profile.licenseNumber,
+            yearsOfExperience: agent.profile.yearsOfExperience,
+            specialization: agent.profile.specialization,
+            portfolioLink: agent.profile.portfolioLink,
+            profilePicture: agent.profile.profilePicture,
+          }
         : null,
       // Latest KYC summary
       latestKyc: latestKyc
         ? {
-          id: latestKyc.id,
-          status: latestKyc.status,
-          idType: latestKyc.idType,
-          idNumber: latestKyc.idNumber,
-          bankName: latestKyc.bankName,
-          accountNumber: latestKyc.accountNumber,
-          accountHolderName: latestKyc.accountHolderName,
-          submittedAt: latestKyc.createdAt,
-        }
+            id: latestKyc.id,
+            status: latestKyc.status,
+            idType: latestKyc.idType,
+            idNumber: latestKyc.idNumber,
+            bankName: latestKyc.bankName,
+            accountNumber: latestKyc.accountNumber,
+            accountHolderName: latestKyc.accountHolderName,
+            submittedAt: latestKyc.createdAt,
+          }
         : null,
     };
   }
@@ -402,13 +427,13 @@ export class AdminService {
       // Full user info
       user: agent.user
         ? {
-          id: agent.user.id,
-          firstName: agent.user.firstName,
-          lastName: agent.user.lastName,
-          email: agent.user.email,
-          phoneNumber: agent.user.phoneNumber,
-          profilePics: agent.user.profilePics,
-        }
+            id: agent.user.id,
+            firstName: agent.user.firstName,
+            lastName: agent.user.lastName,
+            email: agent.user.email,
+            phoneNumber: agent.user.phoneNumber,
+            profilePics: agent.user.profilePics,
+          }
         : null,
       // Full profile
       profile: agent.profile ?? null,
@@ -480,10 +505,14 @@ export class AdminService {
       createdAt: u.createdAt,
     }));
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getAdminUserDetail(userId: string) {
+    this.validateUUID(userId, 'user ID');
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     const { password, loginVerificationToken, ...safe } = user as any;
@@ -491,6 +520,7 @@ export class AdminService {
   }
 
   async suspendUser(userId: string) {
+    this.validateUUID(userId, 'user ID');
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     user.isSuspended = true;
@@ -499,6 +529,7 @@ export class AdminService {
   }
 
   async activateUser(userId: string) {
+    this.validateUUID(userId, 'user ID');
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     user.isSuspended = false;
@@ -512,7 +543,9 @@ export class AdminService {
 
   async getCommunicationStats() {
     const total = await this.conversationRepo.count();
-    const archived = await this.conversationRepo.count({ where: { isArchived: true } });
+    const archived = await this.conversationRepo.count({
+      where: { isArchived: true },
+    });
     const active = total - archived;
     const unread = await this.messageRepo.count({ where: { isRead: false } });
     return { total, active, archived, unreadMessages: unread };
@@ -522,7 +555,8 @@ export class AdminService {
     const { page = 1, limit = 20, search } = query;
     const skip = (page - 1) * limit;
 
-    const qb = this.conversationRepo.createQueryBuilder('conv')
+    const qb = this.conversationRepo
+      .createQueryBuilder('conv')
       .leftJoinAndSelect('conv.members', 'member')
       .leftJoinAndSelect('member.user', 'user')
       .leftJoinAndSelect('conv.lastMessage', 'lastMsg')
@@ -531,7 +565,10 @@ export class AdminService {
       .skip(skip);
 
     if (search) {
-      qb.andWhere('(conv.name ILIKE :s OR user.firstName ILIKE :s OR user.email ILIKE :s)', { s: `%${search}%` });
+      qb.andWhere(
+        '(conv.name ILIKE :s OR user.firstName ILIKE :s OR user.email ILIKE :s)',
+        { s: `%${search}%` },
+      );
     }
 
     const [convs, total] = await qb.getManyAndCount();
@@ -546,10 +583,14 @@ export class AdminService {
       memberCount: c.members?.length ?? 0,
     }));
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getConversationDetail(conversationId: string) {
+    this.validateUUID(conversationId, 'conversation ID');
     const conv = await this.conversationRepo.findOne({
       where: { id: conversationId },
       relations: ['members', 'members.user', 'messages', 'messages.author'],
@@ -559,10 +600,18 @@ export class AdminService {
   }
 
   async escalateConversation(conversationId: string, reason: string) {
-    const conv = await this.conversationRepo.findOne({ where: { id: conversationId } });
+    this.validateUUID(conversationId, 'conversation ID');
+    const conv = await this.conversationRepo.findOne({
+      where: { id: conversationId },
+    });
     if (!conv) throw new NotFoundException('Conversation not found');
     this.logger.log(`Conversation ${conversationId} escalated: ${reason}`);
-    return { success: true, message: 'Conversation escalated to support team', conversationId, reason };
+    return {
+      success: true,
+      message: 'Conversation escalated to support team',
+      conversationId,
+      reason,
+    };
   }
 
   // ══════════════════════════════════════════
@@ -574,6 +623,7 @@ export class AdminService {
   }
 
   async getConversationMessages(conversationId: string) {
+    this.validateUUID(conversationId, 'conversation ID');
     const conv = await this.conversationRepo.findOne({
       where: { id: conversationId },
       relations: ['members', 'members.user'],
@@ -589,11 +639,21 @@ export class AdminService {
     return { conversation: conv, messages };
   }
 
-  async adminSendMessage(conversationId: string, adminId: string, text: string, attachments?: string[]) {
-    const conv = await this.conversationRepo.findOne({ where: { id: conversationId } });
+  async adminSendMessage(
+    conversationId: string,
+    adminId: string,
+    text: string,
+    attachments?: string[],
+  ) {
+    const conv = await this.conversationRepo.findOne({
+      where: { id: conversationId },
+    });
     if (!conv) throw new NotFoundException('Conversation not found');
 
-    const adminRecord = await this.adminRepo.findOne({ where: { id: adminId }, relations: ['user'] });
+    const adminRecord = await this.adminRepo.findOne({
+      where: { id: adminId },
+      relations: ['user'],
+    });
     if (!adminRecord) throw new NotFoundException('Admin not found');
 
     const msg = this.messageRepo.create({
@@ -655,7 +715,10 @@ export class AdminService {
       category: 'Marketplace',
     }));
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getAgentPayouts(query: any) {
@@ -672,19 +735,44 @@ export class AdminService {
   }
 
   async getDisputes(query: any) {
-    return { data: [], meta: { total: 0, page: 1, limit: 20, note: 'Dispute tracking coming soon' } };
+    return {
+      data: [],
+      meta: {
+        total: 0,
+        page: 1,
+        limit: 20,
+        note: 'Dispute tracking coming soon',
+      },
+    };
   }
 
   async getRefunds(query: any) {
-    return { data: [], meta: { total: 0, page: 1, limit: 20, note: 'Refund tracking coming soon' } };
+    return {
+      data: [],
+      meta: {
+        total: 0,
+        page: 1,
+        limit: 20,
+        note: 'Refund tracking coming soon',
+      },
+    };
   }
 
   async releasePayout(payoutId: string, notes?: string) {
     return { success: true, message: `Payout ${payoutId} released`, notes };
   }
 
-  async resolveDispute(disputeId: string, resolution: string, refundTo?: string) {
-    return { success: true, message: `Dispute ${disputeId} resolved`, resolution, refundTo };
+  async resolveDispute(
+    disputeId: string,
+    resolution: string,
+    refundTo?: string,
+  ) {
+    return {
+      success: true,
+      message: `Dispute ${disputeId} resolved`,
+      resolution,
+      refundTo,
+    };
   }
 
   async approveRefund(refundId: string, notes?: string) {
@@ -697,9 +785,15 @@ export class AdminService {
 
   async getMarketplaceStats() {
     const total = await this.marketProductRepo.count();
-    const approved = await this.marketProductRepo.count({ where: { status: MarketProductStatus.APPROVED } });
-    const pending = await this.marketProductRepo.count({ where: { status: MarketProductStatus.PENDING_REVIEW } });
-    const rejected = await this.marketProductRepo.count({ where: { status: MarketProductStatus.REJECTED } });
+    const approved = await this.marketProductRepo.count({
+      where: { status: MarketProductStatus.APPROVED },
+    });
+    const pending = await this.marketProductRepo.count({
+      where: { status: MarketProductStatus.PENDING_REVIEW },
+    });
+    const rejected = await this.marketProductRepo.count({
+      where: { status: MarketProductStatus.REJECTED },
+    });
     return { total, approved, pending, rejected };
   }
 
@@ -710,9 +804,9 @@ export class AdminService {
     const where: any = {};
     if (status && status !== 'All') {
       const map: any = {
-        'Approved': MarketProductStatus.APPROVED,
+        Approved: MarketProductStatus.APPROVED,
         'Pending Approval': MarketProductStatus.PENDING_REVIEW,
-        'Rejected': MarketProductStatus.REJECTED,
+        Rejected: MarketProductStatus.REJECTED,
       };
       if (map[status]) where.status = map[status];
     }
@@ -733,15 +827,21 @@ export class AdminService {
       planType: p.planType,
       price: p.price,
       status: p.status,
-      agent: p.agent?.user ? `${p.agent.user.firstName} ${p.agent.user.lastName}` : 'Unknown',
+      agent: p.agent?.user
+        ? `${p.agent.user.firstName} ${p.agent.user.lastName}`
+        : 'Unknown',
       agentId: p.agentId,
       createdAt: p.createdAt,
     }));
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getMarketplaceListing(listingId: string) {
+    this.validateUUID(listingId, 'listing ID');
     const product = await this.marketProductRepo.findOne({
       where: { id: listingId },
       relations: ['agent', 'agent.user', 'ratings'],
@@ -751,7 +851,10 @@ export class AdminService {
   }
 
   async approveMarketplaceListing(listingId: string) {
-    const product = await this.marketProductRepo.findOne({ where: { id: listingId } });
+    this.validateUUID(listingId, 'listing ID');
+    const product = await this.marketProductRepo.findOne({
+      where: { id: listingId },
+    });
     if (!product) throw new NotFoundException('Listing not found');
     product.status = MarketProductStatus.APPROVED;
     await this.marketProductRepo.save(product);
@@ -759,7 +862,10 @@ export class AdminService {
   }
 
   async rejectMarketplaceListing(listingId: string, reason?: string) {
-    const product = await this.marketProductRepo.findOne({ where: { id: listingId } });
+    this.validateUUID(listingId, 'listing ID');
+    const product = await this.marketProductRepo.findOne({
+      where: { id: listingId },
+    });
     if (!product) throw new NotFoundException('Listing not found');
     product.status = MarketProductStatus.REJECTED;
     await this.marketProductRepo.save(product);
@@ -767,7 +873,10 @@ export class AdminService {
   }
 
   async requestMarketplaceChange(listingId: string, feedback: string) {
-    const product = await this.marketProductRepo.findOne({ where: { id: listingId } });
+    this.validateUUID(listingId, 'listing ID');
+    const product = await this.marketProductRepo.findOne({
+      where: { id: listingId },
+    });
     if (!product) throw new NotFoundException('Listing not found');
     this.logger.log(`Change requested for listing ${listingId}: ${feedback}`);
     return { success: true, message: 'Change request sent to agent', feedback };
@@ -781,7 +890,13 @@ export class AdminService {
     const total = await this.orderRepo.count();
     const paid = await this.orderRepo.count({ where: { isPaid: true } });
     const unpaid = total - paid;
-    return { totalProjects: total, ongoing: paid, completed: 0, disputed: 0, cancelled: unpaid };
+    return {
+      totalProjects: total,
+      ongoing: paid,
+      completed: 0,
+      disputed: 0,
+      cancelled: unpaid,
+    };
   }
 
   async getCustomerProjects(query: any) {
@@ -798,7 +913,9 @@ export class AdminService {
     const data = orders.map((o) => ({
       projectId: o.id.slice(0, 8).toUpperCase(),
       orderId: o.id,
-      customerName: o.user ? `${o.user.firstName} ${o.user.lastName}` : 'Unknown',
+      customerName: o.user
+        ? `${o.user.firstName} ${o.user.lastName}`
+        : 'Unknown',
       planType: o.projectDsc ?? 'N/A',
       purchaseType: o.paymentMethod ?? 'N/A',
       budget: o.grandTotal,
@@ -808,7 +925,10 @@ export class AdminService {
       agentAssigned: null,
     }));
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getAgentPerformance(query: any) {
@@ -842,7 +962,9 @@ export class AdminService {
     const data = products.map((p) => ({
       submissionId: p.id.slice(0, 8).toUpperCase(),
       productId: p.id,
-      agentName: p.agent?.user ? `${p.agent.user.firstName} ${p.agent.user.lastName}` : 'Unknown',
+      agentName: p.agent?.user
+        ? `${p.agent.user.firstName} ${p.agent.user.lastName}`
+        : 'Unknown',
       projectTitle: p.title,
       planType: p.planType,
       projectValue: p.price,
@@ -854,6 +976,7 @@ export class AdminService {
   }
 
   async getProjectDetail(projectId: string) {
+    this.validateUUID(projectId, 'project ID');
     const order = await this.orderRepo.findOne({
       where: { id: projectId },
       relations: ['user'],
@@ -863,15 +986,23 @@ export class AdminService {
   }
 
   async assignAgentToProject(projectId: string, agentId: string) {
+    this.validateUUID(projectId, 'project ID');
+    this.validateUUID(agentId, 'agent ID');
     const order = await this.orderRepo.findOne({ where: { id: projectId } });
     if (!order) throw new NotFoundException('Project not found');
     const agent = await this.agentRepo.findOne({ where: { id: agentId } });
     if (!agent) throw new NotFoundException('Agent not found');
-    return { success: true, message: `Agent ${agentId} assigned to project ${projectId}` };
+    return {
+      success: true,
+      message: `Agent ${agentId} assigned to project ${projectId}`,
+    };
   }
 
   async approveCustomProject(submissionId: string) {
-    const product = await this.marketProductRepo.findOne({ where: { id: submissionId } });
+    this.validateUUID(submissionId, 'submission ID');
+    const product = await this.marketProductRepo.findOne({
+      where: { id: submissionId },
+    });
     if (!product) throw new NotFoundException('Submission not found');
     product.status = MarketProductStatus.APPROVED;
     await this.marketProductRepo.save(product);
@@ -879,7 +1010,10 @@ export class AdminService {
   }
 
   async rejectCustomProject(submissionId: string, reason?: string) {
-    const product = await this.marketProductRepo.findOne({ where: { id: submissionId } });
+    this.validateUUID(submissionId, 'submission ID');
+    const product = await this.marketProductRepo.findOne({
+      where: { id: submissionId },
+    });
     if (!product) throw new NotFoundException('Submission not found');
     product.status = MarketProductStatus.REJECTED;
     await this.marketProductRepo.save(product);
@@ -892,7 +1026,10 @@ export class AdminService {
 
   async getReportsSummary() {
     const paidOrders = await this.orderRepo.find({ where: { isPaid: true } });
-    const totalRevenue = paidOrders.reduce((s, o) => s + Number(o.grandTotal), 0);
+    const totalRevenue = paidOrders.reduce(
+      (s, o) => s + Number(o.grandTotal),
+      0,
+    );
     const totalUsers = await this.userRepo.count();
     const totalAgents = await this.agentRepo.count();
     const totalProducts = await this.marketProductRepo.count();
@@ -926,7 +1063,11 @@ export class AdminService {
     const now = new Date();
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      return { label: d.toLocaleString('default', { month: 'short' }), year: d.getFullYear(), month: d.getMonth() };
+      return {
+        label: d.toLocaleString('default', { month: 'short' }),
+        year: d.getFullYear(),
+        month: d.getMonth(),
+      };
     }).reverse();
 
     const data = await Promise.all(
@@ -986,16 +1127,51 @@ export class AdminService {
   // ══════════════════════════════════════════
 
   private rolesStore: any[] = [
-    { id: '1', name: 'Super Admin', department: 'Executive', users: 1, permissions: 'Full System Access', createdAt: new Date('2024-01-10') },
-    { id: '2', name: 'Project Manager', department: 'Operations', users: 6, permissions: 'Manage Projects, Assign Agents', createdAt: new Date('2024-01-15') },
-    { id: '3', name: 'Finance Manager', department: 'Finance', users: 3, permissions: 'Transactions, Refunds, Payouts', createdAt: new Date('2024-01-20') },
-    { id: '4', name: 'Support Manager', department: 'Customer Support', users: 5, permissions: 'Handle Disputes, Customer Issues', createdAt: new Date('2024-02-02') },
+    {
+      id: '1',
+      name: 'Super Admin',
+      department: 'Executive',
+      users: 1,
+      permissions: 'Full System Access',
+      createdAt: new Date('2024-01-10'),
+    },
+    {
+      id: '2',
+      name: 'Project Manager',
+      department: 'Operations',
+      users: 6,
+      permissions: 'Manage Projects, Assign Agents',
+      createdAt: new Date('2024-01-15'),
+    },
+    {
+      id: '3',
+      name: 'Finance Manager',
+      department: 'Finance',
+      users: 3,
+      permissions: 'Transactions, Refunds, Payouts',
+      createdAt: new Date('2024-01-20'),
+    },
+    {
+      id: '4',
+      name: 'Support Manager',
+      department: 'Customer Support',
+      users: 5,
+      permissions: 'Handle Disputes, Customer Issues',
+      createdAt: new Date('2024-02-02'),
+    },
   ];
 
   async getRolesStats() {
     const totalRoles = this.rolesStore.length;
-    const activeStaff = await this.adminRepo.count({ where: { isActive: true } });
-    return { totalRoles, activeStaff, departmentsCovered: totalRoles, customRolesCreated: 2 };
+    const activeStaff = await this.adminRepo.count({
+      where: { isActive: true },
+    });
+    return {
+      totalRoles,
+      activeStaff,
+      departmentsCovered: totalRoles,
+      customRolesCreated: 2,
+    };
   }
 
   async getAllRoles() {
@@ -1003,7 +1179,12 @@ export class AdminService {
   }
 
   async createRole(dto: any) {
-    const newRole = { id: Date.now().toString(), ...dto, users: 0, createdAt: new Date() };
+    const newRole = {
+      id: Date.now().toString(),
+      ...dto,
+      users: 0,
+      createdAt: new Date(),
+    };
     this.rolesStore.push(newRole);
     return { success: true, role: newRole };
   }
@@ -1043,12 +1224,28 @@ export class AdminService {
     if (!role) throw new NotFoundException('Role not found');
     admin.role = role.name;
     await this.adminRepo.save(admin);
-    return { success: true, message: `Role "${role.name}" assigned to user ${userId}` };
+    return {
+      success: true,
+      message: `Role "${role.name}" assigned to user ${userId}`,
+    };
   }
 
   async getPermissionMatrix() {
-    const permissions = ['View Users', 'Edit Users', 'Assign Agents', 'Manage Projects', 'Approve Refunds', 'Process Payouts', 'Access Reports'];
-    const roles = ['Super Admin', 'Project Manager', 'Finance Manager', 'Support Manager'];
+    const permissions = [
+      'View Users',
+      'Edit Users',
+      'Assign Agents',
+      'Manage Projects',
+      'Approve Refunds',
+      'Process Payouts',
+      'Access Reports',
+    ];
+    const roles = [
+      'Super Admin',
+      'Project Manager',
+      'Finance Manager',
+      'Support Manager',
+    ];
     const matrix: Record<string, number[]> = {
       'Super Admin': [1, 1, 1, 1, 1, 1, 1],
       'Project Manager': [1, 1, 1, 1, 0, 0, 1],
@@ -1063,14 +1260,20 @@ export class AdminService {
   // ══════════════════════════════════════════
 
   async getAdminProfile(adminId: string) {
-    const admin = await this.adminRepo.findOne({ where: { id: adminId }, relations: ['user'] });
+    const admin = await this.adminRepo.findOne({
+      where: { id: adminId },
+      relations: ['user'],
+    });
     if (!admin) throw new NotFoundException('Admin not found');
     const { password, loginVerificationToken, ...safeUser } = admin.user as any;
     return { ...safeUser, adminId: admin.id, adminRole: admin.role };
   }
 
   async updateAdminProfile(adminId: string, dto: any) {
-    const admin = await this.adminRepo.findOne({ where: { id: adminId }, relations: ['user'] });
+    const admin = await this.adminRepo.findOne({
+      where: { id: adminId },
+      relations: ['user'],
+    });
     if (!admin) throw new NotFoundException('Admin not found');
     const user = admin.user;
     if (dto.firstName) user.firstName = dto.firstName;
@@ -1081,12 +1284,20 @@ export class AdminService {
     return { success: true, message: 'Profile updated' };
   }
 
-  async changeAdminPassword(adminId: string, currentPassword: string, newPassword: string) {
-    const admin = await this.adminRepo.findOne({ where: { id: adminId }, relations: ['user'] });
+  async changeAdminPassword(
+    adminId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const admin = await this.adminRepo.findOne({
+      where: { id: adminId },
+      relations: ['user'],
+    });
     if (!admin) throw new NotFoundException('Admin not found');
     const user = admin.user;
     const valid = await bcrypt.compare(currentPassword, user.password ?? '');
-    if (!valid) throw new UnauthorizedException('Current password is incorrect');
+    if (!valid)
+      throw new UnauthorizedException('Current password is incorrect');
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await this.userRepo.save(user);

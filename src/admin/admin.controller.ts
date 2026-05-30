@@ -10,11 +10,16 @@ import {
   Request,
   Query,
   BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminAuthGuard } from './guards/admin-auth.guard';
 import { PaginationDto } from '../utils/pagination.dto';
-import { AdminLoginDto, VerifyAdminLoginDto, MakeAdminDto } from './dto/admin-login.dto';
+import {
+  AdminLoginDto,
+  VerifyAdminLoginDto,
+  MakeAdminDto,
+} from './dto/admin-login.dto';
 import {
   AdminPaginatedQueryDto,
   AdminSendMessageDto,
@@ -33,7 +38,7 @@ import {
 
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(private readonly adminService: AdminService) {}
 
   // ══════════════════════════════════════════
   // MAKE USER AN ADMIN
@@ -51,7 +56,9 @@ export class AdminController {
   @Post('login')
   async adminLogin(@Body() body: any) {
     if (!body || !body.email || !body.password) {
-      throw new BadRequestException('Request body must contain email and password');
+      throw new BadRequestException(
+        'Request body must contain email and password',
+      );
     }
     return this.adminService.adminLogin(body.email, body.password);
   }
@@ -81,7 +88,7 @@ export class AdminController {
   // ══════════════════════════════════════════
   @UseGuards(AdminAuthGuard)
   @Get('agents/:agentId')
-  async getAgentDetail(@Param('agentId') agentId: string) {
+  async getAgentDetail(@Param('agentId', new ParseUUIDPipe()) agentId: string) {
     return this.adminService.getAgentDetail(agentId);
   }
 
@@ -124,21 +131,21 @@ export class AdminController {
   // GET /admin/users/:userId  — single user detail
   @UseGuards(AdminAuthGuard)
   @Get('users/:userId')
-  async getUserDetail(@Param('userId') userId: string) {
+  async getUserDetail(@Param('userId', new ParseUUIDPipe()) userId: string) {
     return this.adminService.getAdminUserDetail(userId);
   }
 
   // PATCH /admin/users/:userId/suspend
   @UseGuards(AdminAuthGuard)
   @Patch('users/:userId/suspend')
-  async suspendUser(@Param('userId') userId: string) {
+  async suspendUser(@Param('userId', new ParseUUIDPipe()) userId: string) {
     return this.adminService.suspendUser(userId);
   }
 
   // PATCH /admin/users/:userId/activate
   @UseGuards(AdminAuthGuard)
   @Patch('users/:userId/activate')
-  async activateUser(@Param('userId') userId: string) {
+  async activateUser(@Param('userId', new ParseUUIDPipe()) userId: string) {
     return this.adminService.activateUser(userId);
   }
 
@@ -163,7 +170,9 @@ export class AdminController {
   // GET /admin/communication/conversations/:conversationId
   @UseGuards(AdminAuthGuard)
   @Get('communication/conversations/:conversationId')
-  async getConversationDetail(@Param('conversationId') conversationId: string) {
+  async getConversationDetail(
+    @Param('conversationId', new ParseUUIDPipe()) conversationId: string,
+  ) {
     return this.adminService.getConversationDetail(conversationId);
   }
 
@@ -171,7 +180,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Post('communication/conversations/:conversationId/escalate')
   async escalateConversation(
-    @Param('conversationId') conversationId: string,
+    @Param('conversationId', new ParseUUIDPipe()) conversationId: string,
     @Body() body: AdminEscalateConversationDto,
   ) {
     return this.adminService.escalateConversation(conversationId, body.reason);
@@ -191,7 +200,9 @@ export class AdminController {
   // GET /admin/messages/:conversationId  — get messages in conversation
   @UseGuards(AdminAuthGuard)
   @Get('messages/:conversationId')
-  async getConversationMessages(@Param('conversationId') conversationId: string) {
+  async getConversationMessages(
+    @Param('conversationId', new ParseUUIDPipe()) conversationId: string,
+  ) {
     return this.adminService.getConversationMessages(conversationId);
   }
 
@@ -199,7 +210,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Post('messages/:conversationId/reply')
   async sendMessage(
-    @Param('conversationId') conversationId: string,
+    @Param('conversationId', new ParseUUIDPipe()) conversationId: string,
     @Request() req: any,
     @Body() body: AdminSendMessageDto,
   ) {
@@ -253,21 +264,34 @@ export class AdminController {
   // PATCH /admin/financials/payouts/:payoutId/release
   @UseGuards(AdminAuthGuard)
   @Patch('financials/payouts/:payoutId/release')
-  async releasePayout(@Param('payoutId') payoutId: string, @Body() body: any) {
+  async releasePayout(
+    @Param('payoutId', new ParseUUIDPipe()) payoutId: string,
+    @Body() body: any,
+  ) {
     return this.adminService.releasePayout(payoutId, body?.notes);
   }
 
   // PATCH /admin/financials/disputes/:disputeId/resolve
   @UseGuards(AdminAuthGuard)
   @Patch('financials/disputes/:disputeId/resolve')
-  async resolveDispute(@Param('disputeId') disputeId: string, @Body() body: ResolveDisputeDto) {
-    return this.adminService.resolveDispute(disputeId, body.resolution, body.refundTo);
+  async resolveDispute(
+    @Param('disputeId', new ParseUUIDPipe()) disputeId: string,
+    @Body() body: ResolveDisputeDto,
+  ) {
+    return this.adminService.resolveDispute(
+      disputeId,
+      body.resolution,
+      body.refundTo,
+    );
   }
 
   // PATCH /admin/financials/refunds/:refundId/approve
   @UseGuards(AdminAuthGuard)
   @Patch('financials/refunds/:refundId/approve')
-  async approveRefund(@Param('refundId') refundId: string, @Body() body: any) {
+  async approveRefund(
+    @Param('refundId', new ParseUUIDPipe()) refundId: string,
+    @Body() body: any,
+  ) {
     return this.adminService.approveRefund(refundId, body?.notes);
   }
 
@@ -292,14 +316,18 @@ export class AdminController {
   // GET /admin/marketplace/listings/:listingId
   @UseGuards(AdminAuthGuard)
   @Get('marketplace/listings/:listingId')
-  async getMarketplaceListing(@Param('listingId') listingId: string) {
+  async getMarketplaceListing(
+    @Param('listingId', new ParseUUIDPipe()) listingId: string,
+  ) {
     return this.adminService.getMarketplaceListing(listingId);
   }
 
   // PATCH /admin/marketplace/listings/:listingId/approve
   @UseGuards(AdminAuthGuard)
   @Patch('marketplace/listings/:listingId/approve')
-  async approveMarketplaceListing(@Param('listingId') listingId: string) {
+  async approveMarketplaceListing(
+    @Param('listingId', new ParseUUIDPipe()) listingId: string,
+  ) {
     return this.adminService.approveMarketplaceListing(listingId);
   }
 
@@ -307,7 +335,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Patch('marketplace/listings/:listingId/reject')
   async rejectMarketplaceListing(
-    @Param('listingId') listingId: string,
+    @Param('listingId', new ParseUUIDPipe()) listingId: string,
     @Body() body: AdminMarketActionDto,
   ) {
     return this.adminService.rejectMarketplaceListing(listingId, body?.reason);
@@ -317,7 +345,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Patch('marketplace/listings/:listingId/request-change')
   async requestMarketplaceChange(
-    @Param('listingId') listingId: string,
+    @Param('listingId', new ParseUUIDPipe()) listingId: string,
     @Body() body: AdminRequestChangeDto,
   ) {
     return this.adminService.requestMarketplaceChange(listingId, body.feedback);
@@ -358,7 +386,9 @@ export class AdminController {
   // GET /admin/projects/customers/:projectId
   @UseGuards(AdminAuthGuard)
   @Get('projects/customers/:projectId')
-  async getProjectDetail(@Param('projectId') projectId: string) {
+  async getProjectDetail(
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
+  ) {
     return this.adminService.getProjectDetail(projectId);
   }
 
@@ -366,7 +396,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Patch('projects/customers/:projectId/assign-agent')
   async assignAgent(
-    @Param('projectId') projectId: string,
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
     @Body() body: AssignAgentDto,
   ) {
     return this.adminService.assignAgentToProject(projectId, body.agentId);
@@ -375,7 +405,9 @@ export class AdminController {
   // PATCH /admin/projects/custom/:submissionId/approve
   @UseGuards(AdminAuthGuard)
   @Patch('projects/custom/:submissionId/approve')
-  async approveCustomProject(@Param('submissionId') submissionId: string) {
+  async approveCustomProject(
+    @Param('submissionId', new ParseUUIDPipe()) submissionId: string,
+  ) {
     return this.adminService.approveCustomProject(submissionId);
   }
 
@@ -383,7 +415,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Patch('projects/custom/:submissionId/reject')
   async rejectCustomProject(
-    @Param('submissionId') submissionId: string,
+    @Param('submissionId', new ParseUUIDPipe()) submissionId: string,
     @Body() body: AdminProjectActionDto,
   ) {
     return this.adminService.rejectCustomProject(submissionId, body?.reason);
@@ -456,14 +488,17 @@ export class AdminController {
   // PATCH /admin/roles/:roleId
   @UseGuards(AdminAuthGuard)
   @Patch('roles/:roleId')
-  async updateRole(@Param('roleId') roleId: string, @Body() body: UpdateRoleDto) {
+  async updateRole(
+    @Param('roleId', new ParseUUIDPipe()) roleId: string,
+    @Body() body: UpdateRoleDto,
+  ) {
     return this.adminService.updateRole(roleId, body);
   }
 
   // DELETE /admin/roles/:roleId
   @UseGuards(AdminAuthGuard)
   @Delete('roles/:roleId')
-  async deleteRole(@Param('roleId') roleId: string) {
+  async deleteRole(@Param('roleId', new ParseUUIDPipe()) roleId: string) {
     return this.adminService.deleteRole(roleId);
   }
 
@@ -477,7 +512,10 @@ export class AdminController {
   // PATCH /admin/roles/staff/:userId/assign
   @UseGuards(AdminAuthGuard)
   @Patch('roles/staff/:userId/assign')
-  async assignRoleToStaff(@Param('userId') userId: string, @Body() body: AssignRoleDto) {
+  async assignRoleToStaff(
+    @Param('userId') userId: string,
+    @Body() body: AssignRoleDto,
+  ) {
     return this.adminService.assignRoleToStaff(userId, body.roleId);
   }
 
@@ -502,14 +540,24 @@ export class AdminController {
   // PATCH /admin/settings/profile
   @UseGuards(AdminAuthGuard)
   @Patch('settings/profile')
-  async updateAdminProfile(@Request() req: any, @Body() body: UpdateAdminProfileDto) {
+  async updateAdminProfile(
+    @Request() req: any,
+    @Body() body: UpdateAdminProfileDto,
+  ) {
     return this.adminService.updateAdminProfile(req.adminId, body);
   }
 
   // PATCH /admin/settings/security/change-password
   @UseGuards(AdminAuthGuard)
   @Patch('settings/security/change-password')
-  async changePassword(@Request() req: any, @Body() body: ChangeAdminPasswordDto) {
-    return this.adminService.changeAdminPassword(req.adminId, body.currentPassword, body.newPassword);
+  async changePassword(
+    @Request() req: any,
+    @Body() body: ChangeAdminPasswordDto,
+  ) {
+    return this.adminService.changeAdminPassword(
+      req.adminId,
+      body.currentPassword,
+      body.newPassword,
+    );
   }
 }
