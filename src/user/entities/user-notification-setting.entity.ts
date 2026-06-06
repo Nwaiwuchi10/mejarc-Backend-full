@@ -38,6 +38,15 @@ export class UserNotificationSetting {
   @Column({ default: true })
   paymentOrderConfirmation: boolean;
 
+  @Column({ default: true })
+  paymentPending: boolean;
+
+  @Column({ default: true })
+  paymentFailed: boolean;
+
+  @Column({ default: true })
+  paymentReversed: boolean;
+
   // REVIEWS & FEEDBACK
   @Column({ default: true })
   reviewReminder: boolean;

@@ -1,14 +1,27 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
-import { WalletTransaction, TransactionType, TransactionCategory } from './entities/wallet-transaction.entity';
-import { WithdrawalRequest, WithdrawalStatus } from './entities/withdrawal-request.entity';
+import {
+  WalletTransaction,
+  TransactionType,
+  TransactionCategory,
+} from './entities/wallet-transaction.entity';
+import {
+  WithdrawalRequest,
+  WithdrawalStatus,
+} from './entities/withdrawal-request.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { WithdrawDto } from './dto/withdraw.dto';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/entities/notification.entity';
 import { Admin } from '../admin/entities/admin.entity';
+import { WithdrawalQueueService } from './services/withdrawal-queue.service';
+import { BankAccountService } from './services/bank-account.service';
 
 @Injectable()
 export class WalletService {
@@ -24,7 +37,9 @@ export class WalletService {
     @InjectRepository(Admin)
     private readonly adminRepository: Repository<Admin>,
     private readonly notificationService: NotificationService,
-  ) { }
+    private readonly withdrawalQueueService: WithdrawalQueueService,
+    private readonly bankAccountService: BankAccountService,
+  ) {}
 
   async getOverview(userId: string) {
     const agent = await this.agentRepository.findOne({
@@ -47,7 +62,7 @@ export class WalletService {
     }
 
     const sortedTransactions = agent.wallet.transactions.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     );
 
     const earningsBreakdown = {
@@ -55,7 +70,7 @@ export class WalletService {
       productSales: 0,
     };
 
-    agent.wallet.transactions.forEach(tx => {
+    agent.wallet.transactions.forEach((tx) => {
       if (tx.type === TransactionType.CREDIT) {
         if (tx.category === TransactionCategory.CUSTOM_DESIGN) {
           earningsBreakdown.customDesign += Number(tx.amount);
@@ -85,7 +100,7 @@ export class WalletService {
     }
 
     return agent.wallet.transactions.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     );
   }
 
@@ -121,10 +136,29 @@ export class WalletService {
     const withdrawalAmount = Number(amount);
 
     if (currentBalance < withdrawalAmount) {
-      throw new BadRequestException('Insufficient cleared funds for withdrawal.');
+      throw new BadRequestException(
+        'Insufficient cleared funds for withdrawal.',
+      );
     }
 
-    const queryRunner = this.walletRepository.manager.connection.createQueryRunner();
+    // 0. Check withdrawal eligibility (has verified bank account)
+    const verifiedAccount =
+      await this.bankAccountService.getDefaultBankAccount(agent.id);
+    if (!verifiedAccount) {
+      throw new BadRequestException(
+        'You must have a verified bank account to request a withdrawal.',
+      );
+    }
+
+    // Use details from verified account to ensure accuracy
+    const actualAccountDetails = `${verifiedAccount.accountHolderName} - ${verifiedAccount.accountNumber} - ${verifiedAccount.bankName}`;
+
+    // Auto-approve logic: approve immediately if amount < 100,000 NGN
+    const AUTO_APPROVE_THRESHOLD = 100000;
+    const shouldAutoApprove = withdrawalAmount <= AUTO_APPROVE_THRESHOLD;
+
+    const queryRunner =
+      this.walletRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
@@ -133,13 +167,18 @@ export class WalletService {
       agent.wallet.balance = currentBalance - withdrawalAmount;
       await queryRunner.manager.save(agent.wallet);
 
-      // 2. Create Withdrawal Request (PENDING)
+      // 2. Create Withdrawal Request
+      const status = shouldAutoApprove
+        ? WithdrawalStatus.APPROVED
+        : WithdrawalStatus.PENDING;
+
       const withdrawalRequest = this.withdrawalRepository.create({
         amount: withdrawalAmount,
-        status: WithdrawalStatus.PENDING,
+        status: status,
         description: description || '',
-        accountDetails,
+        accountDetails: actualAccountDetails,
         agent,
+        autoProcess: true,
       });
       const savedRequest = await queryRunner.manager.save(withdrawalRequest);
 
@@ -171,8 +210,26 @@ export class WalletService {
         }
       }
 
+      // 5. If auto-approved, trigger the queue worker
+      if (shouldAutoApprove) {
+        this.withdrawalQueueService
+          .processWithdrawal({
+            withdrawalId: savedRequest.id,
+            agentId: agent.id,
+            amount: withdrawalAmount,
+          })
+          .catch((err) => {
+            console.error(
+              `Error initiating auto-withdrawal ${savedRequest.id}:`,
+              err,
+            );
+          });
+      }
+
       return {
-        message: 'Withdrawal request submitted successfully',
+        message: shouldAutoApprove
+          ? 'Withdrawal processed successfully'
+          : 'Withdrawal request submitted successfully for approval',
         balance: agent.wallet.balance,
         withdrawalRequest: savedRequest,
       };
@@ -184,7 +241,7 @@ export class WalletService {
     }
   }
 
-  async approveWithdrawal(id: string, adminNotes?: string) {
+  async approveWithdrawal(id: string, adminNotes?: string, adminId?: string) {
     const request = await this.withdrawalRepository.findOne({
       where: { id },
       relations: ['agent', 'agent.user'],
@@ -205,16 +262,34 @@ export class WalletService {
         request.agent.user.id,
         NotificationType.WITHDRAWAL,
         'Withdrawal Approved',
-        `Your withdrawal of ₦${request.amount} has been approved and credited.`,
+        `Your withdrawal of ₦${request.amount} has been approved and will be processed automatically.`,
         { withdrawalId: request.id, amount: request.amount },
         'paymentSuccessful',
       );
     }
 
-    return { message: 'Withdrawal approved successfully', request };
+    // 3. Trigger processing if it's an auto-process request
+    if (request.autoProcess) {
+      // We don't await here to return success to admin immediately while processing continues in background
+      this.withdrawalQueueService
+        .processWithdrawal({
+          withdrawalId: request.id,
+          agentId: request.agentId,
+          amount: Number(request.amount),
+        })
+        .catch((err) => {
+          console.error(`Error initiating auto-withdrawal ${request.id}:`, err);
+        });
+    }
+
+    return {
+      message: 'Withdrawal approved successfully',
+      processing: request.autoProcess,
+      request,
+    };
   }
 
-  async rejectWithdrawal(id: string, reason: string) {
+  async rejectWithdrawal(id: string, reason: string, adminId?: string) {
     const request = await this.withdrawalRepository.findOne({
       where: { id },
       relations: ['agent', 'agent.wallet', 'agent.user'],
@@ -229,7 +304,8 @@ export class WalletService {
       throw new BadRequestException('Agent wallet not found');
     }
 
-    const queryRunner = this.withdrawalRepository.manager.connection.createQueryRunner();
+    const queryRunner =
+      this.withdrawalRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
@@ -276,6 +352,138 @@ export class WalletService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async getWithdrawalDetails(withdrawalId: string, userId: string) {
+    const withdrawal = await this.withdrawalRepository.findOne({
+      where: { id: withdrawalId },
+      relations: ['agent', 'agent.user'],
+    });
+
+    if (!withdrawal) {
+      throw new NotFoundException('Withdrawal not found');
+    }
+
+    // Verify ownership
+    if (withdrawal.agent?.user?.id !== userId) {
+      throw new BadRequestException('Unauthorized access to this withdrawal');
+    }
+
+    return withdrawal;
+  }
+
+  async getFinancialSummary() {
+    const withdrawals = await this.withdrawalRepository.find({
+      relations: ['agent'],
+    });
+
+    const summary = {
+      totalWithdrawals: withdrawals.length,
+      totalAmount: 0,
+      byStatus: {
+        pending: 0,
+        approved: 0,
+        processing: 0,
+        transferred: 0,
+        rejected: 0,
+        failed: 0,
+      },
+      byStatusAmount: {
+        pending: 0,
+        approved: 0,
+        processing: 0,
+        transferred: 0,
+        rejected: 0,
+        failed: 0,
+      },
+    };
+
+    withdrawals.forEach((w) => {
+      const amount = Number(w.amount);
+      summary.totalAmount += amount;
+
+      const status = w.status.toLowerCase().replace(/\s+/g, '');
+      if (status in summary.byStatus) {
+        summary.byStatus[status as keyof typeof summary.byStatus]++;
+        summary.byStatusAmount[status as keyof typeof summary.byStatusAmount] +=
+          amount;
+      }
+    });
+
+    return summary;
+  }
+
+  async getFinancialReports(startDate: Date, endDate: Date) {
+    const withdrawals = await this.withdrawalRepository.find({
+      relations: ['agent', 'agent.user'],
+      where: {
+        createdAt: {
+          raw: `BETWEEN '${startDate.toISOString()}' AND '${endDate.toISOString()}'`,
+        } as any,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const vendorSummary: Record<
+      string,
+      {
+        vendorName: string;
+        vendorId: string;
+        totalRequested: number;
+        totalApproved: number;
+        totalTransferred: number;
+        totalRejected: number;
+        requestCount: number;
+        withdrawals: any[];
+      }
+    > = {};
+
+    withdrawals.forEach((w) => {
+      const vendorId = w.agentId;
+      const vendorName = w.agent?.user?.firstName || 'Unknown';
+      const amount = Number(w.amount);
+
+      if (!vendorSummary[vendorId]) {
+        vendorSummary[vendorId] = {
+          vendorName,
+          vendorId,
+          totalRequested: 0,
+          totalApproved: 0,
+          totalTransferred: 0,
+          totalRejected: 0,
+          requestCount: 0,
+          withdrawals: [],
+        };
+      }
+
+      vendorSummary[vendorId].totalRequested += amount;
+      vendorSummary[vendorId].requestCount++;
+
+      if (w.status === WithdrawalStatus.APPROVED) {
+        vendorSummary[vendorId].totalApproved += amount;
+      } else if (w.status === WithdrawalStatus.TRANSFERRED) {
+        vendorSummary[vendorId].totalTransferred += amount;
+      } else if (w.status === WithdrawalStatus.REJECTED) {
+        vendorSummary[vendorId].totalRejected += amount;
+      }
+
+      vendorSummary[vendorId].withdrawals.push({
+        id: w.id,
+        amount: w.amount,
+        status: w.status,
+        createdAt: w.createdAt,
+        paystackReference: w.paystackReference,
+        paystackTransferCode: w.paystackTransferCode,
+      });
+    });
+
+    return {
+      dateRange: { startDate, endDate },
+      totalVendors: Object.keys(vendorSummary).length,
+      totalWithdrawals: withdrawals.length,
+      totalAmount: withdrawals.reduce((sum, w) => sum + Number(w.amount), 0),
+      vendorSummary: Object.values(vendorSummary),
+    };
   }
 
   async creditWallet(

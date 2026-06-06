@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { WalletModule } from '../wallet/wallet.module';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Admin } from './entities/admin.entity';
 import { User } from '../user/entities/user.entity';
@@ -18,6 +19,7 @@ import { UserModule } from '../user/user.module';
     TypeOrmModule.forFeature([Admin, User, Agent, Order, MarketProduct, Conversation, Message]),
     AgentModule,
     UserModule,
+    forwardRef(() => WalletModule),
   ],
   providers: [AdminService, AdminAuthGuard],
   controllers: [AdminController],

@@ -11,6 +11,8 @@ import { Repository, Like, MoreThanOrEqual } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
+import { WalletService } from '../wallet/wallet.service';
+import { Inject, forwardRef } from '@nestjs/common';
 
 import { Admin } from './entities/admin.entity';
 import { User } from '../user/entities/user.entity';
@@ -45,6 +47,8 @@ export class AdminService {
     private readonly agentMailService: AgentMailService,
     private readonly userMailService: MailService,
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => WalletService))
+    private readonly walletService: WalletService,
   ) {}
 
   // ══════════════════════════════════════════
@@ -677,12 +681,17 @@ export class AdminService {
     const orders = await this.orderRepo.find({ where: { isPaid: true } });
     const totalRevenue = orders.reduce((s, o) => s + Number(o.grandTotal), 0);
     const orderCount = orders.length;
+
+    const walletSummary = await this.walletService.getFinancialSummary();
+
     return {
       totalRevenue,
       customerPayments: totalRevenue,
-      agentPayouts: 0,
+      pendingPayouts: walletSummary.byStatusAmount.pending + walletSummary.byStatusAmount.approved + walletSummary.byStatusAmount.processing,
+      completedPayouts: walletSummary.byStatusAmount.transferred,
       platformCommission: +(totalRevenue * 0.05).toFixed(2),
       totalOrders: orderCount,
+      refundsIssued: 0, // Placeholder
     };
   }
 

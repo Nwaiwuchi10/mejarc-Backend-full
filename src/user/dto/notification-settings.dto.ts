@@ -31,6 +31,18 @@ export class UpdateNotificationSettingsDto {
 
   @IsBoolean()
   @IsOptional()
+  paymentPending?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  paymentFailed?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  paymentReversed?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
   reviewReminder?: boolean;
 
   @IsBoolean()
