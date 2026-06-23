@@ -314,16 +314,16 @@ export class AdminService {
       registrationStatus: 'APPROVED',
     } as any);
 
-    try {
-      if (agent.user)
-        await this.agentMailService.sendAgentApprovalNotification(
-          agent.user as any,
-          agent as any,
-          true,
-        );
-    } catch (e) {}
+    // try {
+    //   if (agent.user)
+    //     await this.agentMailService.sendAgentApprovalNotification(
+    //       agent.user as any,
+    //       agent as any,
+    //       true,
+    //     );
+    // } catch (e) {}
 
-    return { success: true };
+    return { success: true }; 
   }
 
   async rejectAgent(agentId: string, reason?: string) {
