@@ -20,6 +20,7 @@ async function bootstrap() {
     origin: [
       'https://mejarc.onrender.com',
       'https://admin-app-mv4j.onrender.com',
+      "https://mejarc-admin-portal.vercel.app",
       'http://10.161.5.213:3000',
       'http://localhost:3000', // frontend dev server
       'http://localhost:3001',
