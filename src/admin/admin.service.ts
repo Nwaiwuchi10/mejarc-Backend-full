@@ -241,6 +241,68 @@ export class AdminService {
   // 5.  ADMIN — VIEW SINGLE AGENT DETAIL
   // ══════════════════════════════════════════
 
+  async getAgentApplications(query: any) {
+    const { page = 1, limit = 20, search, status, businessType } = query;
+    const skip = (page - 1) * limit;
+
+    const qb = this.agentRepo.createQueryBuilder('agent')
+      .leftJoinAndSelect('agent.user', 'user')
+      .leftJoinAndSelect('agent.profile', 'profile')
+      .leftJoinAndSelect('agent.kycRecords', 'kycRecords');
+
+    if (status && status !== 'All') {
+      if (status === 'Pending') {
+        qb.andWhere('agent.registrationStatus IN (:...statuses)', {
+          statuses: ['awaiting_approval', 'kyc_pending', 'bio_pending', 'profile_pending'],
+        });
+      } else if (status === 'Approved') {
+        qb.andWhere("agent.registrationStatus = 'approved'");
+      } else if (status === 'Rejected') {
+        qb.andWhere("agent.registrationStatus = 'rejected'");
+      }
+    }
+
+    if (businessType && businessType !== 'All') {
+      qb.andWhere('profile.preferredTitle = :businessType', { businessType });
+    }
+
+    if (search) {
+      qb.andWhere('(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search OR agent.businessName ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+
+    qb.orderBy('agent.createdAt', 'DESC')
+      .take(limit)
+      .skip(skip);
+
+    const [agents, total] = await qb.getManyAndCount();
+
+    const data = agents.map((agent) => {
+      let mappedStatus = 'Pending';
+      if (agent.registrationStatus === 'approved') {
+        mappedStatus = 'Approved';
+      } else if (agent.registrationStatus === 'rejected') {
+        mappedStatus = 'Rejected';
+      }
+
+      return {
+        id: agent.id,
+        name: agent.user ? `${agent.user.firstName} ${agent.user.lastName}` : agent.businessName || 'Agent',
+        email: agent.user?.email || '',
+        businessType: agent.profile?.preferredTitle || 'Building Designer',
+        status: mappedStatus,
+        createdAt: agent.createdAt,
+        updatedAt: agent.updatedAt,
+      };
+    });
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
   /**
    * GET /admin/agents/:agentId
    * Returns a single agent's full detail with all KYC records.
@@ -472,42 +534,72 @@ export class AdminService {
     const { page = 1, limit = 20, search, status, tab } = query;
     const skip = (page - 1) * limit;
 
-    const where: any[] = [];
-    const base: any = {};
-    if (status && status !== 'All') base.isSuspended = status === 'Disabled';
+    const qb = this.userRepo.createQueryBuilder('user')
+      .leftJoinAndMapOne('user.agent', Agent, 'agent', 'agent.userId = user.id')
+      .leftJoinAndMapOne('user.admin', Admin, 'admin', 'admin.userId = user.id');
 
-    if (search) {
-      const s = `%${search}%`;
-      where.push({ ...base, firstName: Like(s) });
-      where.push({ ...base, lastName: Like(s) });
-      where.push({ ...base, email: Like(s) });
-    } else {
-      where.push(base);
+    if (tab === 'Customers') {
+      qb.andWhere('agent.id IS NULL');
+      qb.andWhere('admin.id IS NULL');
+    } else if (tab === 'Agents') {
+      qb.andWhere('agent.id IS NOT NULL');
+      if (query.isApproved === 'true' || query.isApproved === true) {
+        qb.andWhere("agent.registrationStatus = 'approved'");
+      }
+    } else if (tab === 'Staff') {
+      qb.andWhere('admin.id IS NOT NULL');
+      if (query.role && query.role !== 'All') {
+        qb.andWhere('admin.role = :role', { role: query.role });
+      }
     }
 
-    const [users, total] = await this.userRepo.findAndCount({
-      where: where.length ? where : undefined,
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip,
-    });
+    if (status && status !== 'All') {
+      if (status === 'Disabled') {
+        qb.andWhere('user.isSuspended = :suspended', { suspended: true });
+      } else if (status === 'Active') {
+        qb.andWhere('user.isSuspended = :suspended AND user.isEmailVerified = :verified', { suspended: false, verified: true });
+      } else if (status === 'Pending') {
+        qb.andWhere('user.isSuspended = :suspended AND user.isEmailVerified = :verified', { suspended: false, verified: false });
+      }
+    }
 
-    const mapStatus = (u: User) =>
+    if (search) {
+      qb.andWhere('(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+
+    qb.orderBy('user.createdAt', 'DESC')
+      .take(limit)
+      .skip(skip);
+
+    const [users, total] = await qb.getManyAndCount();
+
+    const mapStatus = (u: any) =>
       u.isSuspended ? 'Disabled' : u.isEmailVerified ? 'Active' : 'Pending';
 
-    const data = users.map((u) => ({
-      id: u.id,
-      name: `${u.firstName} ${u.lastName}`,
-      email: u.email,
-      role: u.userType,
-      userType: u.userType,
-      phoneNumber: u.phoneNumber,
-      status: mapStatus(u),
-      verification: u.isEmailVerified ? 'Verified' : 'Pending',
-      lastLogin: u.lastLoginAttempt ?? u.updatedAt,
-      profilePics: u.profilePics,
-      createdAt: u.createdAt,
-    }));
+    const data = users.map((u: any) => {
+      let userType = 'Customer';
+      if (u.admin) {
+        userType = u.admin.role || 'Admin';
+      } else if (u.agent) {
+        userType = 'Agent';
+      }
+
+      return {
+        id: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        email: u.email,
+        role: u.admin ? 'admin' : u.agent ? 'agent' : 'user',
+        userType: userType,
+        phoneNumber: u.phoneNumber,
+        status: mapStatus(u),
+        verification: u.isEmailVerified ? 'Verified' : 'Pending',
+        lastLogin: u.lastLoginAttempt ?? u.updatedAt,
+        profilePics: u.profilePics,
+        createdAt: u.createdAt,
+      };
+    });
 
     return {
       data,

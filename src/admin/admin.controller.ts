@@ -83,6 +83,16 @@ export class AdminController {
   }
 
   // ══════════════════════════════════════════
+  // VIEW ALL AGENT APPLICATIONS FOR KYC REVIEW
+  // GET /admin/agents/applications
+  // ══════════════════════════════════════════
+  @UseGuards(AdminAuthGuard)
+  @Get('agents/applications')
+  async getAgentApplications(@Query() query: any) {
+    return this.adminService.getAgentApplications(query);
+  }
+
+  // ══════════════════════════════════════════
   // VIEW SINGLE AGENT FULL DETAIL
   // GET /admin/agents/:agentId
   // ══════════════════════════════════════════
