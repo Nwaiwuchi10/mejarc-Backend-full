@@ -15,6 +15,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { CustomDesignModule } from './customdesign/customdesign.module';
 import { NotificationModule } from './notification/notification.module';
 import { ChatModule } from './chat/chat.module';
+import { ContactModule } from './contact/contact.module';
 import config from './config/config';
 
 @Module({
@@ -36,35 +37,35 @@ import config from './config/config';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
-        ssl: {
-          rejectUnauthorized: false,
-        },
-        extra: {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        },
-        autoLoadEntities: true,
-        synchronize: true, // ⚠️ Changed to true to create missing tables
-      }),
       // useFactory: (configService: ConfigService) => ({
       //   type: 'postgres',
-      //   host: configService.get('DB_HOST'),
-      //   port: +configService.get('DB_PORT'),
-      //   username: configService.get('DB_USERNAME'),
-      //   password: configService.get('DB_PASSWORD'),
-      //   database: configService.get('DB_NAME'),
-      //   ssl:
-      //     configService.get('DB_SSL') === 'true'
-      //       ? { rejectUnauthorized: false }
-      //       : undefined,
-      //   entities: [join(process.cwd(), 'dist/**/*.entity.js')],
-
-      //   synchronize: true,
+      //   url: configService.get<string>('DATABASE_URL'),
+      //   ssl: {
+      //     rejectUnauthorized: false,
+      //   },
+      //   extra: {
+      //     ssl: {
+      //       rejectUnauthorized: false,
+      //     },
+      //   },
+      //   autoLoadEntities: true,
+      //   synchronize: true, // ⚠️ Changed to true to create missing tables
       // }),
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: +configService.get('DB_PORT'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        ssl:
+          configService.get('DB_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : undefined,
+        entities: [join(process.cwd(), 'dist/**/*.entity.js')],
+
+        synchronize: true,
+      }),
     }),
     UserModule,
     AgentModule,
@@ -75,6 +76,7 @@ import config from './config/config';
     CustomDesignModule,
     NotificationModule,
     ChatModule, // RolesModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -40,6 +40,17 @@ export class AdminPaginatedQueryDto {
   @IsOptional()
   @IsString()
   tab?: string;
+
+  @IsOptional()
+  @IsString()
+  userType?: string;
+
+  @IsOptional()
+  isApproved?: any;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 import * as multerS3 from 'multer-s3';
 import { memoryStorage } from 'multer';
 import * as dotenv from 'dotenv';
@@ -23,6 +23,15 @@ export const s3Client = hasS3Credentials
   : null;
 
 export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || '';
+
+// Force AWS SDK to sync its internal clock offset by making a quick, lightweight request.
+// Even if it fails (due to clock skew or auth), the SDK extracts the server time and adjusts.
+if (s3Client && AWS_S3_BUCKET_NAME) {
+  s3Client.send(new HeadBucketCommand({ Bucket: AWS_S3_BUCKET_NAME }))
+    .catch((err) => {
+      console.log('S3 clock synchronization check finished (error expected/ignored):', err.name || err.message);
+    });
+}
 
 console.log('AWS S3 Configuration:', {
   hasS3Credentials,

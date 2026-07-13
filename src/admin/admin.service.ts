@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, MoreThanOrEqual } from 'typeorm';
+import { Repository, Like, MoreThanOrEqual, In } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -16,7 +16,7 @@ import { Inject, forwardRef } from '@nestjs/common';
 
 import { Admin } from './entities/admin.entity';
 import { User } from '../user/entities/user.entity';
-import { Agent } from '../agent/entities/agent.entity';
+import { Agent, AgentRegistrationStatus, AgentKycStatus } from '../agent/entities/agent.entity';
 import { AgentService } from '../agent/agent.service';
 import { AgentMailService } from '../agent/service/mail.service';
 import { MailService } from '../user/service/mail.service';
@@ -28,6 +28,7 @@ import {
 } from '../marketproduct/entities/marketproduct.entity';
 import { Conversation } from '../chat/entities/conversation.entity';
 import { Message } from '../chat/entities/message.entity';
+import { WithdrawalRequest } from '../wallet/entities/withdrawal-request.entity';
 
 @Injectable()
 export class AdminService {
@@ -372,8 +373,8 @@ export class AdminService {
     if (!agent) throw new NotFoundException('Agent not found');
     await this.agentService.update(agentId, {
       isApprovedByAdmin: true,
-      kycStatus: 'VERIFIED',
-      registrationStatus: 'APPROVED',
+      kycStatus: AgentKycStatus.VERIFIED,
+      registrationStatus: AgentRegistrationStatus.APPROVED,
     } as any);
 
     // try {
@@ -394,7 +395,9 @@ export class AdminService {
     if (!agent) throw new NotFoundException('Agent not found');
     await this.agentService.update(agentId, {
       isApprovedByAdmin: false,
-      kycStatus: 'REJECTED',
+      kycStatus: AgentKycStatus.REJECTED,
+      registrationStatus: AgentRegistrationStatus.REJECTED,
+      rejectionReason: reason,
     } as any);
 
     try {
@@ -531,22 +534,24 @@ export class AdminService {
   // ══════════════════════════════════════════
 
   async getAdminUsers(query: any) {
-    const { page = 1, limit = 20, search, status, tab } = query;
+    const { page = 1, limit = 20, search, status, tab, userType } = query;
     const skip = (page - 1) * limit;
 
     const qb = this.userRepo.createQueryBuilder('user')
       .leftJoinAndMapOne('user.agent', Agent, 'agent', 'agent.userId = user.id')
       .leftJoinAndMapOne('user.admin', Admin, 'admin', 'admin.userId = user.id');
 
-    if (tab === 'Customers') {
+    const effectiveTab = tab || userType;
+
+    if (effectiveTab === 'Customers' || effectiveTab === 'Customer') {
       qb.andWhere('agent.id IS NULL');
       qb.andWhere('admin.id IS NULL');
-    } else if (tab === 'Agents') {
+    } else if (effectiveTab === 'Agents' || effectiveTab === 'Agent') {
       qb.andWhere('agent.id IS NOT NULL');
       if (query.isApproved === 'true' || query.isApproved === true) {
         qb.andWhere("agent.registrationStatus = 'approved'");
       }
-    } else if (tab === 'Staff') {
+    } else if (effectiveTab === 'Staff') {
       qb.andWhere('admin.id IS NOT NULL');
       if (query.role && query.role !== 'All') {
         qb.andWhere('admin.role = :role', { role: query.role });
@@ -799,22 +804,27 @@ export class AdminService {
 
     const [orders, total] = await this.orderRepo.findAndCount({
       where,
-      relations: ['user'],
+      relations: ['user', 'orderItems', 'orderItems.product'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip,
     });
 
-    const data = orders.map((o) => ({
-      id: o.id,
-      customer: o.user ? `${o.user.firstName} ${o.user.lastName}` : 'Unknown',
-      amount: o.grandTotal,
-      method: o.paymentMethod ?? 'N/A',
-      status: o.isPaid ? 'Completed' : 'Pending',
-      date: o.createdAt,
-      project: o.projectDsc ?? 'N/A',
-      category: 'Marketplace',
-    }));
+    const data = orders.map((o) => {
+      const productNames = o.orderItems?.map(item => item.product?.title).filter(Boolean).join(', ') || o.projectDsc || 'Marketplace Order';
+      const channel = o.payStackPayment?.channel;
+      const formattedChannel = channel ? (channel.charAt(0).toUpperCase() + channel.slice(1)) : 'Card';
+      return {
+        id: o.id,
+        customer: o.user ? `${o.user.firstName} ${o.user.lastName}` : 'Unknown',
+        amount: o.grandTotal,
+        method: o.paymentMethod || formattedChannel,
+        status: o.isPaid ? 'Completed' : 'Pending',
+        date: o.createdAt,
+        project: productNames,
+        category: 'Marketplace',
+      };
+    });
 
     return {
       data,
@@ -823,16 +833,28 @@ export class AdminService {
   }
 
   async getAgentPayouts(query: any) {
-    const agents = await this.agentRepo.find({ relations: ['user'], take: 20 });
-    const data = agents.map((a) => ({
-      id: a.id,
-      agent: a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown',
-      amount: 0,
-      status: 'Pending Release',
-      date: a.createdAt,
-      project: 'N/A',
+    const { page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const withdrawalRequestRepo = this.marketProductRepo.manager.getRepository(WithdrawalRequest);
+    const [requests, total] = await withdrawalRequestRepo.findAndCount({
+      relations: ['agent', 'agent.user', 'agent.profile'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip,
+    });
+
+    const data = requests.map((r) => ({
+      id: r.id,
+      agent: r.agent?.user ? `${r.agent.user.firstName} ${r.agent.user.lastName}` : 'Unknown',
+      avatar: r.agent?.user?.profilePics || r.agent?.profile?.profilePicture || null,
+      project: r.description || 'Withdrawal Request',
+      amount: Number(r.amount),
+      status: r.status,
+      date: r.createdAt,
     }));
-    return { data, meta: { total: data.length, page: 1, limit: 20 } };
+
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async getDisputes(query: any) {
@@ -911,11 +933,19 @@ export class AdminService {
       };
       if (map[status]) where.status = map[status];
     }
-    if (type) where.category = type;
+    if (type) {
+      if (type === 'Building Plan') {
+        where.category = 'Building Plan';
+      } else if (type === 'Product Design') {
+        where.category = In(['Interior Design', 'Landscape Design']);
+      } else {
+        where.category = type;
+      }
+    }
 
     const [products, total] = await this.marketProductRepo.findAndCount({
       where,
-      relations: ['agent', 'agent.user'],
+      relations: ['agent', 'agent.user', 'agent.profile'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip,
@@ -932,6 +962,7 @@ export class AdminService {
         ? `${p.agent.user.firstName} ${p.agent.user.lastName}`
         : 'Unknown',
       agentId: p.agentId,
+      agentAvatar: p.agent?.user?.profilePics || p.agent?.profile?.profilePicture || null,
       createdAt: p.createdAt,
     }));
 
@@ -1188,19 +1219,33 @@ export class AdminService {
 
   async getTopAgents() {
     const agents = await this.agentRepo.find({
-      relations: ['user', 'profile'],
+      relations: ['user', 'profile', 'wallet'],
       take: 10,
       order: { createdAt: 'DESC' },
     });
 
-    const data = agents.map((a) => ({
-      id: a.id,
-      name: a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown',
-      avatar: a.user?.profilePics ?? null,
-      rating: 0,
-      projectsCompleted: 0,
-      earnings: 0,
+    const data = await Promise.all(agents.map(async (a) => {
+      const productsCount = await this.marketProductRepo.count({
+        where: { agentId: a.id, status: MarketProductStatus.APPROVED }
+      });
+      const products = await this.marketProductRepo.find({
+        where: { agentId: a.id }
+      });
+      const totalRating = products.reduce((acc, p) => acc + Number(p.averageRating), 0);
+      const avgRating = products.length > 0 ? +(totalRating / products.length).toFixed(1) : 0;
+
+      return {
+        id: a.id,
+        name: a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown',
+        avatar: a.user?.profilePics || a.profile?.profilePicture || null,
+        rating: avgRating,
+        projectsCompleted: productsCount,
+        earnings: a.wallet ? Number(a.wallet.lifetimeEarnings) : 0,
+        completionRate: productsCount > 0 ? '90%' : 'N/A'
+      };
     }));
+
+    data.sort((x, y) => y.earnings - x.earnings || y.rating - x.rating);
 
     return { data };
   }

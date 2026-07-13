@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, Between } from 'typeorm';
+import { Repository, Like, Between, In } from 'typeorm';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
 import { MarketProduct, MarketProductStatus } from './entities/marketproduct.entity';
@@ -83,7 +83,7 @@ export class MarketproductService {
   }
 
   async findAll(filterDto: MarketProductFilterDto) {
-    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice } = filterDto;
+    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice, status } = filterDto;
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
@@ -95,7 +95,19 @@ export class MarketproductService {
 
     const filters: any = {};
     if (planType) filters.planType = planType;
-    if (category) filters.category = category;
+    if (category) {
+      if (category === 'Product Design') {
+        filters.category = In(['Interior Design', 'Landscape Design']);
+      } else if (category === 'Building Plans') {
+        filters.category = 'Building Plan';
+      } else if (category === 'Building Guides') {
+        // Guides category type constraints
+        filters.category = 'Building Plan';
+      } else {
+        filters.category = category;
+      }
+    }
+    filters.status = status || MarketProductStatus.APPROVED;
     if (numBedrooms) filters.numBedrooms = numBedrooms;
     if (numBathrooms) filters.numBathrooms = numBathrooms;
     if (numFloors) filters.numFloors = numFloors;
@@ -139,7 +151,7 @@ export class MarketproductService {
   }
 
   async findAllByAgent(agentId: string, filterDto: MarketProductFilterDto) {
-    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice } = filterDto;
+    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice, status } = filterDto;
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
@@ -152,6 +164,7 @@ export class MarketproductService {
     const filters: any = { agentId };
     if (planType) filters.planType = planType;
     if (category) filters.category = category;
+    if (status) filters.status = status;
     if (numBedrooms) filters.numBedrooms = numBedrooms;
     if (numBathrooms) filters.numBathrooms = numBathrooms;
     if (numFloors) filters.numFloors = numFloors;

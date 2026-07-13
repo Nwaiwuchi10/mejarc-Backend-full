@@ -1,7 +1,7 @@
 import { IsOptional, IsString, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../utils/pagination.dto';
-import { PlanType, ProductCategory } from '../entities/marketproduct.entity';
+import { PlanType, ProductCategory, MarketProductStatus } from '../entities/marketproduct.entity';
 
 export class MarketProductFilterDto extends PaginationDto {
     @IsOptional()
@@ -10,7 +10,11 @@ export class MarketProductFilterDto extends PaginationDto {
 
     @IsOptional()
     @IsString()
-    category?: ProductCategory;
+    category?: string;
+
+    @IsOptional()
+    @IsString()
+    status?: MarketProductStatus;
 
     @IsOptional()
     @IsString()
