@@ -84,6 +84,7 @@ export class OrderService {
           productId: item.productId,
           totalQuantity: item.totalQuantity,
           totalPrice,
+          title: product.title,
         });
       }
     }
@@ -143,6 +144,7 @@ export class OrderService {
         userLastName,
         grandTotal,
         paystackResponse.data.reference,
+        validatedOrderItems,
       );
     } catch (error) {
       this.logger.error(`Failed to send email to ${userEmail}`, error);
@@ -315,7 +317,7 @@ export class OrderService {
       }
 
       try {
-        await this.mailService.VerifyOrder(user.email, user.firstName, user.lastName, amountInNaira, reference, data.status);
+        await this.mailService.VerifyOrder(user.email, user.firstName, user.lastName, amountInNaira, reference, data.status, orderDetails?.orderItems);
       } catch (err) {
         console.error(`Failed to send payment confirmation email to ${user.email}`);
       }
@@ -345,7 +347,7 @@ export class OrderService {
       // Handle Product File Delivery to User
       try {
         if (orderDetails && orderDetails.orderItems?.length > 0) {
-          await this.mailService.sendProductDeliveryMail(user.email, user.firstName, orderDetails.orderItems);
+          await this.mailService.sendProductDeliveryMail(user.email, user.firstName, orderDetails.orderItems, orderDetails);
         }
       } catch (error) {
         console.error(`Failed to send product delivery email to User ${user.email}`, error);

@@ -39,9 +39,11 @@ export class UserService {
 
   async create(dto: CreateUserDto, file?: Express.Multer.File) {
     return this.dataSource.transaction(async (manager) => {
-      // === Check email uniqueness ===
+      // === Check email uniqueness (case-insensitive and withDeleted) ===
+      const cleanEmail = dto.email ? dto.email.trim().toLowerCase() : '';
       const emailExists = await manager.findOne(User, {
-        where: { email: dto.email },
+        where: { email: cleanEmail },
+        withDeleted: true,
       });
 
       if (emailExists) {
@@ -50,8 +52,10 @@ export class UserService {
 
       // === Optional phone uniqueness ===
       if (dto.phoneNumber) {
+        const cleanPhone = dto.phoneNumber.trim();
         const phoneExists = await manager.findOne(User, {
-          where: { phoneNumber: dto.phoneNumber },
+          where: { phoneNumber: cleanPhone },
+          withDeleted: true,
         });
 
         if (phoneExists) {
@@ -86,8 +90,8 @@ export class UserService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         name: `${dto.firstName} ${dto.lastName}`,
-        email: dto.email,
-        phoneNumber: dto.phoneNumber,
+        email: cleanEmail,
+        phoneNumber: dto.phoneNumber ? dto.phoneNumber.trim() : undefined,
         password: dto.password,
 
         profilePics,
@@ -109,9 +113,9 @@ export class UserService {
    * Validates credentials and sends verification token to email
    */
   async initiateLogin(loginDto: LoginRequestDto) {
-    // === Find user by email ===
+    const cleanEmail = loginDto.email ? loginDto.email.trim().toLowerCase() : '';
     const user = await this.userRepo.findOne({
-      where: { email: loginDto.email },
+      where: { email: cleanEmail },
     });
 
     if (!user) {
@@ -390,7 +394,8 @@ export class UserService {
   }
 
   async forgotPassword(email: string) {
-    const staff = await this.userRepo.findOne({ where: { email } });
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const staff = await this.userRepo.findOne({ where: { email: cleanEmail } });
 
     if (!staff) {
       throw new NotFoundException('No user found with this email');

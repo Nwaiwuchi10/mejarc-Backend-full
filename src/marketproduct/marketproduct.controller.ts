@@ -41,6 +41,8 @@ export class MarketproductController {
         { name: 'productImage', maxCount: 10 },
         { name: 'architecturalPlan', maxCount: 10 },
         { name: 'structuralPlan', maxCount: 10 },
+        { name: 'electricalPlan', maxCount: 10 },
+        { name: 'mechanicalPlan', maxCount: 10 },
       ],
       {
         storage: createS3Storage('market-products'),
@@ -56,6 +58,8 @@ export class MarketproductController {
       productImage?: Express.Multer.File[];
       architecturalPlan?: Express.Multer.File[];
       structuralPlan?: Express.Multer.File[];
+      electricalPlan?: Express.Multer.File[];
+      mechanicalPlan?: Express.Multer.File[];
     },
   ) {
     const agentId = req.agentId;
@@ -88,6 +92,8 @@ export class MarketproductController {
         { name: 'productImage', maxCount: 10 },
         { name: 'architecturalPlan', maxCount: 10 },
         { name: 'structuralPlan', maxCount: 10 },
+        { name: 'electricalPlan', maxCount: 10 },
+        { name: 'mechanicalPlan', maxCount: 10 },
       ],
       {
         storage: createS3Storage('market-products'),
@@ -103,6 +109,8 @@ export class MarketproductController {
       productImage?: Express.Multer.File[];
       architecturalPlan?: Express.Multer.File[];
       structuralPlan?: Express.Multer.File[];
+      electricalPlan?: Express.Multer.File[];
+      mechanicalPlan?: Express.Multer.File[];
     },
   ) {
     return this.marketproductService.update(id, updateMarketproductDto, files);

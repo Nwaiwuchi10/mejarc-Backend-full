@@ -1,5 +1,5 @@
 import * as nodemailer from 'nodemailer';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as dotenv from 'dotenv';
 import { User } from '../entities/user.entity';
 import * as SibApiV3Sdk from 'sib-api-v3-sdk';
@@ -8,6 +8,7 @@ dotenv.config();
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter;
   private brevoClient: SibApiV3Sdk.TransactionalEmailsApi;
 
@@ -21,55 +22,61 @@ export class MailService {
   // === ONBOARDING MAIL ===
 
   async staffOnboardingMail(user: User) {
-    const mailOptions = {
-      sender: {
-        name: 'Security Team',
-        email: process.env.MAIL_FROM,
-      },
-      to: [
-        {
-          email: user.email,
-          name: user.firstName,
+    try {
+      const mailOptions = {
+        sender: {
+          name: 'Security Team',
+          email: process.env.MAIL_FROM,
         },
-      ],
-      subject: `🎉 Welcome to Our Company, ${user.firstName}!`,
-      htmlContent: this.buildTemplate({
-        // 🔥 FIXED HERE
-        title: `Welcome to the Mejarch Company, ${user.firstName} ${user.lastName} 🎉`,
-        subtitle: `We're thrilled to have you onboard!`,
-        user,
-        footerNote: 'We look forward to your impact and growth 🚀',
-      }),
-    };
+        to: [
+          {
+            email: user.email,
+            name: user.firstName,
+          },
+        ],
+        subject: `🎉 Welcome to Our Company, ${user.firstName}!`,
+        htmlContent: this.buildTemplate({
+          title: `Welcome to the Mejarch Company, ${user.firstName} ${user.lastName} 🎉`,
+          subtitle: `We're thrilled to have you onboard!`,
+          user,
+          footerNote: 'We look forward to your impact and growth 🚀',
+        }),
+      };
 
-    await this.brevoClient.sendTransacEmail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
+    } catch (err: any) {
+      this.logger.error(`Failed to send onboarding email to ${user.email}: ${err.message || err}`);
+    }
   }
   // === LOGIN MAIL ===
 
   async staffLoginMail(user: User) {
-    const mailOptions = {
-      sender: {
-        name: 'Security Team',
-        email: process.env.MAIL_FROM,
-      },
-      to: [
-        {
-          email: user.email,
-          name: user.firstName,
+    try {
+      const mailOptions = {
+        sender: {
+          name: 'Security Team',
+          email: process.env.MAIL_FROM,
         },
-      ],
-      subject: `🔑 Login Alert for ${user.firstName}`,
-      htmlContent: this.buildTemplate({
-        // 🔥 FIXED HERE
-        title: `Login Successful ✅`,
-        subtitle: `Hello ${user.firstName}, you logged into your account just now.`,
-        user,
-        footerNote:
-          'If this wasn’t you, please reset your password immediately.',
-      }),
-    };
+        to: [
+          {
+            email: user.email,
+            name: user.firstName,
+          },
+        ],
+        subject: `🔑 Login Alert for ${user.firstName}`,
+        htmlContent: this.buildTemplate({
+          title: `Login Successful ✅`,
+          subtitle: `Hello ${user.firstName}, you logged into your account just now.`,
+          user,
+          footerNote:
+            'If this wasn’t you, please reset your password immediately.',
+        }),
+      };
 
-    await this.brevoClient.sendTransacEmail(mailOptions);
+      await this.brevoClient.sendTransacEmail(mailOptions);
+    } catch (err: any) {
+      this.logger.error(`Failed to send login alert to ${user.email}: ${err.message || err}`);
+    }
   }
   // === LOGIN VERIFICATION EMAIL ===
   async sendLoginVerificationEmail(
@@ -82,7 +89,7 @@ export class MailService {
     const sendSmtpEmail = {
       sender: {
         name: 'Security Team',
-        email: process.env.MAIL_FROM, // must be verified in Brevo
+        email: process.env.MAIL_FROM,
       },
       to: [
         {
@@ -140,7 +147,11 @@ export class MailService {
     `,
     };
 
-    await this.brevoClient.sendTransacEmail(sendSmtpEmail);
+    try {
+      await this.brevoClient.sendTransacEmail(sendSmtpEmail);
+    } catch (err: any) {
+      this.logger.error(`Failed to send verification email to ${email}: ${err.message || err}`);
+    }
   }
   async sendPasswordResetEmail(email: string, token: string) {
     const resetLink = `${process.env.Frontend_Domain_Url}/login/reset-password?token=${token}`;
@@ -194,7 +205,11 @@ export class MailService {
     `,
     };
 
-    await this.brevoClient.sendTransacEmail(mailOptions);
+    try {
+      await this.brevoClient.sendTransacEmail(mailOptions);
+    } catch (err: any) {
+      this.logger.error(`Failed to send password reset link to ${email}: ${err.message || err}`);
+    }
   }
 
   // === TEMPLATE BUILDER ===

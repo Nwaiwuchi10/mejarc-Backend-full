@@ -101,6 +101,24 @@ export class MarketProduct {
     @Column({ type: 'simple-array', nullable: true })
     structuralPlan?: string[];
 
+    @Column({ type: 'simple-array', nullable: true })
+    electricalPlan?: string[];
+
+    @Column({ type: 'simple-array', nullable: true })
+    mechanicalPlan?: string[];
+
+    @Column({ type: 'varchar', nullable: true })
+    architecturalPlanFileType?: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    structuralPlanFileType?: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    electricalPlanFileType?: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    mechanicalPlanFileType?: string;
+
     @Column({
         type: 'enum',
         enum: MarketProductStatus,

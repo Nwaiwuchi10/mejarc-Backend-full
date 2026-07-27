@@ -30,7 +30,23 @@ export class MailService {
     lastName: string,
     amount: number,
     reference: string,
+    orderItems?: any[],
   ) {
+    let itemsHtml = '';
+    if (orderItems && orderItems.length > 0) {
+      itemsHtml = `
+        <div style="margin-top: 15px; padding: 10px; background-color: #f1f1f1; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px; color: #333;">Purchased Plan details:</h4>
+          <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #555;">
+      ` + orderItems.map((item: any) => {
+        const title = item.title || item.product?.title || 'Building Plan';
+        return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
+      }).join('') + `
+          </ul>
+        </div>
+      `;
+    }
+
     const mailOptions = {
       sender: { name: 'Mejarc', email: process.env.MAIL_FROM },
       to: [{ email, name: firstName }],
@@ -42,7 +58,7 @@ export class MailService {
                 <h1 style="color: #333; font-size: 24px; margin-bottom: 5px;">Order Confirmed!</h1>
                 <p style="font-size: 16px; color: #777;">Thank you for your purchase, ${firstName}!</p>
             </div>
-  
+   
             <div style="padding: 20px; background-color: #f9f9f9; border-radius: 8px;">
                 <p style="font-size: 16px; color: #555;">
                     Dear <strong>${firstName} ${lastName}</strong>,
@@ -56,6 +72,7 @@ export class MailService {
                  <li><strong>Amount Paid:</strong> ₦${amount.toLocaleString()}</li>
                  <li><strong>Transaction Status:</strong> pending</li>
                 </ul>
+                ${itemsHtml}
                 <p style="font-size: 16px; color: #555;">
                     You can track your order with this reference number <strong> ${reference} </strong>
                 </p>
@@ -63,9 +80,9 @@ export class MailService {
                     You can access your dashboard for more details or to track your order.
                 </p>
             </div>
-  
+   
             <hr style="border-top: 1px solid #eeeeee; margin: 30px 0;" />
-  
+   
             <div style="text-align: center; font-size: 14px; color: #999;">
                 <p style="margin: 0 0 10px;">Thanks for choosing Mejarc!</p>
                 <p>&copy; ${new Date().getFullYear()} Mejarc. All rights reserved.</p>
@@ -88,7 +105,23 @@ export class MailService {
     amount: number,
     referencePay: string,
     trans_status: string,
+    orderItems?: any[],
   ) {
+    let itemsHtml = '';
+    if (orderItems && orderItems.length > 0) {
+      itemsHtml = `
+        <div style="margin-top: 15px; padding: 10px; background-color: #f1f1f1; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px; color: #333;">Purchased Plan details:</h4>
+          <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #555;">
+      ` + orderItems.map((item: any) => {
+        const title = item.product?.title || item.title || 'Building Plan';
+        return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
+      }).join('') + `
+          </ul>
+        </div>
+      `;
+    }
+
     const mailOptions = {
       sender: { name: 'Mejarc', email: process.env.MAIL_FROM },
       to: [{ email, name: firstName }],
@@ -112,6 +145,7 @@ export class MailService {
                  <li><strong>Amount Paid:</strong> ₦${amount.toLocaleString()}</li>
                  <li><strong>Transaction Status:</strong> ${trans_status}</li>
                 </ul>
+                ${itemsHtml}
             </div>
   
             <hr style="border-top: 1px solid #eeeeee; margin: 30px 0;" />
@@ -148,9 +182,9 @@ export class MailService {
     if (orderItems && orderItems.length > 0) {
       itemsHtml += orderItems
         .map((item) => {
-          const productName = item?.productId?.title || 'N/A';
+          const productName = item?.product?.title || 'N/A';
           const quantity = item?.totalQuantity || 0;
-          const price = item?.productId?.price || 0;
+          const price = item?.product?.price || 0;
           const total = quantity * price;
 
           return `<tr><td style="padding: 8px; border: 1px solid #ccc;">${productName}</td><td style="padding: 8px; border: 1px solid #ccc;">${quantity}</td><td style="padding: 8px; border: 1px solid #ccc;">₦${total.toLocaleString()}</td></tr>`;
@@ -223,9 +257,9 @@ export class MailService {
     if (orderItems && orderItems.length > 0) {
       itemsHtml += orderItems
         .map((item) => {
-          const productName = item?.productId?.title || 'N/A';
+          const productName = item?.product?.title || 'N/A';
           const quantity = item?.totalQuantity || 0;
-          const price = item?.productId?.price || 0;
+          const price = item?.product?.price || 0;
           const total = quantity * price;
 
           return `<tr><td style="padding: 8px; border: 1px solid #ccc;">${productName}</td><td style="padding: 8px; border: 1px solid #ccc;">${quantity}</td><td style="padding: 8px; border: 1px solid #ccc;">₦${total.toLocaleString()}</td></tr>`;
@@ -329,7 +363,7 @@ export class MailService {
     }
   }
 
-  async sendProductDeliveryMail(email: string, firstName: string, orderItems: any[]) {
+  async sendProductDeliveryMail(email: string, firstName: string, orderItems: any[], order?: any) {
     let productsHtml = '';
 
     if (orderItems && orderItems.length > 0) {
@@ -338,18 +372,24 @@ export class MailService {
           const productName = item?.product?.title || 'Unknown Product';
           let filesHtml = '<ul style="padding-left: 20px;">';
 
-          if (item?.product?.architecturalPlan) {
-            filesHtml += `<li><a href="${item.product.architecturalPlan}" style="color: #4CAF50; text-decoration: none;">Download Architectural Plan</a></li>`;
-          }
-          if (item?.product?.structuralPlan) {
-            filesHtml += `<li><a href="${item.product.structuralPlan}" style="color: #4CAF50; text-decoration: none;">Download Structural Plan</a></li>`;
-          }
-          if (item?.product?.mechanicalPlan) {
-            filesHtml += `<li><a href="${item.product.mechanicalPlan}" style="color: #4CAF50; text-decoration: none;">Download Mechanical Plan</a></li>`;
-          }
-          if (item?.product?.electricalPlan) {
-            filesHtml += `<li><a href="${item.product.electricalPlan}" style="color: #4CAF50; text-decoration: none;">Download Electrical Plan</a></li>`;
-          }
+          const formatFiles = (planField: string[] | string, label: string) => {
+            let html = '';
+            if (Array.isArray(planField)) {
+              planField.forEach((link, i) => {
+                if (link) {
+                  html += `<li><a href="${link}" style="color: #4CAF50; text-decoration: none; font-weight: bold;">Download ${label} File ${i + 1}</a></li>`;
+                }
+              });
+            } else if (planField) {
+              html += `<li><a href="${planField}" style="color: #4CAF50; text-decoration: none; font-weight: bold;">Download ${label}</a></li>`;
+            }
+            return html;
+          };
+
+          filesHtml += formatFiles(item?.product?.architecturalPlan, 'Architectural Plan');
+          filesHtml += formatFiles(item?.product?.structuralPlan, 'Structural Plan');
+          filesHtml += formatFiles(item?.product?.electricalPlan, 'Electrical Plan');
+          filesHtml += formatFiles(item?.product?.mechanicalPlan, 'Mechanical Plan');
 
           if (filesHtml === '<ul style="padding-left: 20px;">') {
             filesHtml += '<li>No files available for download yet. Please contact support.</li>';
@@ -379,13 +419,21 @@ export class MailService {
           </div>
           <p>Hi <strong>${firstName}</strong>,</p>
           <p>Thank you for your purchase! We successfully processed your payment and your product files are ready for download.</p>
+          ${order ? `
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #FFC700; font-size: 14px; color: #555;">
+            <p style="margin: 0 0 5px;"><strong>Order ID:</strong> ${order.id}</p>
+            <p style="margin: 0 0 5px;"><strong>Payment Reference:</strong> ${order.payStackPayment?.reference || 'N/A'}</p>
+            <p style="margin: 0 0 5px;"><strong>Amount Paid:</strong> ₦${parseFloat(order.grandTotal || "0").toLocaleString()}</p>
+            <p style="margin: 0 0 5px;"><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
+          </div>
+          ` : ''}
           <div style="margin: 30px 0;">
              ${productsHtml}
           </div>
           <p>If you have any issues accessing these files, please reply to this email.</p>
           <hr style="margin: 30px 0;" />
           <div style="text-align: center; color: #aaa;">
-            <p>&copy; ${new Date().getFullYear()} Mejarc</p>
+            <p>&copy; ${new Date().getFullYear()} Mejarc All rights reserved.</p>
           </div>
         </div>
       `,

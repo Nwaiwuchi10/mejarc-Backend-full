@@ -71,7 +71,29 @@ export class CreateMarketproductDto {
     @IsOptional()
     structuralPlan?: string[];
 
-    @IsEnum(MarketProductStatus)
+    @IsArray()
+    @IsString({ each: true })
     @IsOptional()
-    status?: MarketProductStatus;
+    electricalPlan?: string[];
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    mechanicalPlan?: string[];
+
+    @IsString()
+    @IsOptional()
+    architecturalPlanFileType?: string;
+
+    @IsString()
+    @IsOptional()
+    structuralPlanFileType?: string;
+
+    @IsString()
+    @IsOptional()
+    electricalPlanFileType?: string;
+
+    @IsString()
+    @IsOptional()
+    mechanicalPlanFileType?: string;
 }

@@ -20,6 +20,9 @@ export class ContactInquiry {
   @Column('text')
   message: string;
 
+  @Column({ type: 'simple-array', nullable: true })
+  images?: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 }

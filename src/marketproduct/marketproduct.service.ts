@@ -36,6 +36,8 @@ export class MarketproductService {
       productImage?: Express.Multer.File[];
       architecturalPlan?: Express.Multer.File[];
       structuralPlan?: Express.Multer.File[];
+      electricalPlan?: Express.Multer.File[];
+      mechanicalPlan?: Express.Multer.File[];
     },
   ) {
     // 1. Find the agent and user
@@ -58,6 +60,8 @@ export class MarketproductService {
     const productImage = files?.productImage?.map((f: any) => f.location) || [];
     const architecturalPlan = files?.architecturalPlan?.map((f: any) => f.location) || [];
     const structuralPlan = files?.structuralPlan?.map((f: any) => f.location) || [];
+    const electricalPlan = files?.electricalPlan?.map((f: any) => f.location) || [];
+    const mechanicalPlan = files?.mechanicalPlan?.map((f: any) => f.location) || [];
 
     // 3. Create Product entity
     const product = this.productRepo.create({
@@ -67,6 +71,8 @@ export class MarketproductService {
       productImage,
       architecturalPlan,
       structuralPlan,
+      electricalPlan,
+      mechanicalPlan,
     });
 
     const savedProduct = await this.productRepo.save(product);
@@ -130,8 +136,6 @@ export class MarketproductService {
       queryOptions.where = [
         { ...filters, title: Like(`%${search}%`) },
         { ...filters, description: Like(`%${search}%`) },
-        { ...filters, category: Like(`%${search}%`) },
-        { ...filters, planType: Like(`%${search}%`) },
       ];
     } else {
       queryOptions.where = filters;
@@ -187,8 +191,6 @@ export class MarketproductService {
       queryOptions.where = [
         { ...filters, title: Like(`%${search}%`) },
         { ...filters, description: Like(`%${search}%`) },
-        { ...filters, category: Like(`%${search}%`) },
-        { ...filters, planType: Like(`%${search}%`) },
       ];
     } else {
       queryOptions.where = filters;
@@ -227,6 +229,8 @@ export class MarketproductService {
       productImage?: Express.Multer.File[];
       architecturalPlan?: Express.Multer.File[];
       structuralPlan?: Express.Multer.File[];
+      electricalPlan?: Express.Multer.File[];
+      mechanicalPlan?: Express.Multer.File[];
     },
   ) {
     const product = await this.findOne(id);
@@ -244,6 +248,12 @@ export class MarketproductService {
     }
     if (files?.structuralPlan?.length) {
       product.structuralPlan = files.structuralPlan.map((f: any) => f.location);
+    }
+    if (files?.electricalPlan?.length) {
+      product.electricalPlan = files.electricalPlan.map((f: any) => f.location);
+    }
+    if (files?.mechanicalPlan?.length) {
+      product.mechanicalPlan = files.mechanicalPlan.map((f: any) => f.location);
     }
 
     const updatedProduct = await this.productRepo.save(product);

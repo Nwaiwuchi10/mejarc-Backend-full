@@ -49,6 +49,19 @@ export class ContactService {
             <hr style="border: 0; border-top: 1px border #ccc; margin: 20px 0;" />
             <p><strong>Message:</strong></p>
             <p style="white-space: pre-wrap; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #FFC700;">${saved.message}</p>
+            ${
+              saved.images && saved.images.length > 0
+                ? `<h3>Attached Reference Pictures:</h3>
+                   <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                     ${saved.images
+                       .map(
+                         (img) =>
+                           `<a href="${img}" target="_blank" style="margin-right: 10px;"><img src="${img}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;" /></a>`,
+                       )
+                       .join('')}
+                   </div>`
+                : ''
+            }
           </div>
         `,
       };
