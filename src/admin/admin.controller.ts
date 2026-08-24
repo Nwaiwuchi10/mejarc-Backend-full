@@ -442,6 +442,13 @@ export class AdminController {
     return this.adminService.getReportsSummary();
   }
 
+  // GET /admin/system-health
+  @UseGuards(AdminAuthGuard)
+  @Get('system-health')
+  async getSystemHealth() {
+    return this.adminService.getSystemHealth();
+  }
+
   // GET /admin/reports/performance
   @UseGuards(AdminAuthGuard)
   @Get('reports/performance')

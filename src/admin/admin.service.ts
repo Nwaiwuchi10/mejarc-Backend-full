@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, MoreThanOrEqual, In } from 'typeorm';
+import { Repository, Like, MoreThanOrEqual, In, Between } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -16,6 +16,7 @@ import { Inject, forwardRef } from '@nestjs/common';
 
 import { Admin } from './entities/admin.entity';
 import { User } from '../user/entities/user.entity';
+import { UserAddress } from '../user/entities/user-adress.entity';
 import { Agent, AgentRegistrationStatus, AgentKycStatus } from '../agent/entities/agent.entity';
 import { AgentService } from '../agent/agent.service';
 import { AgentMailService } from '../agent/service/mail.service';
@@ -661,28 +662,54 @@ export class AdminService {
       .leftJoinAndSelect('conv.members', 'member')
       .leftJoinAndSelect('member.user', 'user')
       .leftJoinAndSelect('conv.lastMessage', 'lastMsg')
+      .leftJoinAndSelect('lastMsg.author', 'lastMsgAuthor')
       .orderBy('conv.lastMessageAt', 'DESC')
       .take(limit)
       .skip(skip);
 
     if (search) {
       qb.andWhere(
-        '(conv.name ILIKE :s OR user.firstName ILIKE :s OR user.email ILIKE :s)',
+        '(conv.name ILIKE :s OR user.firstName ILIKE :s OR user.lastName ILIKE :s OR user.email ILIKE :s)',
         { s: `%${search}%` },
       );
     }
 
     const [convs, total] = await qb.getManyAndCount();
 
-    const data = convs.map((c) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      isArchived: c.isArchived,
-      lastMessage: (c.lastMessage as any)?.text ?? null,
-      lastMessageAt: c.lastMessageAt,
-      memberCount: c.members?.length ?? 0,
-    }));
+    const data = convs.map((c) => {
+      const memberUsers = c.members?.map((m) => m.user).filter(Boolean) || [];
+      const memberNames = memberUsers
+        .map((u) => `${u.firstName || ''} ${u.lastName || ''}`.trim())
+        .filter(Boolean);
+
+      const displayName =
+        c.name ||
+        (memberNames.length > 0 ? memberNames.join(', ') : 'Conversation');
+
+      const authorName = c.lastMessage?.author
+        ? `${c.lastMessage.author.firstName || ''} ${c.lastMessage.author.lastName || ''}`.trim()
+        : null;
+
+      const unreadTotal = c.members?.reduce((acc, m) => acc + (m.unreadCount || 0), 0) || 0;
+
+      return {
+        id: c.id,
+        name: displayName,
+        author: authorName,
+        type: c.type || 'dm',
+        isArchived: c.isArchived,
+        lastMessage: c.lastMessage?.text ?? null,
+        lastMessageAt: c.lastMessageAt || c.updatedAt || c.createdAt,
+        memberCount: c.members?.length ?? 0,
+        unreadCount: unreadTotal,
+        members: memberUsers.map((u) => ({
+          id: u.id,
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+          email: u.email,
+          profilePics: u.profilePics,
+        })),
+      };
+    });
 
     return {
       data,
@@ -851,6 +878,10 @@ export class AdminService {
       project: r.description || 'Withdrawal Request',
       amount: Number(r.amount),
       status: r.status,
+      accountDetails: r.accountDetails,
+      autoProcess: r.autoProcess,
+      adminNotes: r.adminNotes,
+      paystackReference: r.paystackReference,
       date: r.createdAt,
     }));
 
@@ -1159,35 +1190,151 @@ export class AdminService {
   async getReportsSummary() {
     const paidOrders = await this.orderRepo.find({ where: { isPaid: true } });
     const totalRevenue = paidOrders.reduce(
-      (s, o) => s + Number(o.grandTotal),
+      (s, o) => s + Number(o.grandTotal || 0),
       0,
     );
     const totalUsers = await this.userRepo.count();
     const totalAgents = await this.agentRepo.count();
     const totalProducts = await this.marketProductRepo.count();
+    const totalOrders = await this.orderRepo.count();
+
+    let completedPayouts = 0;
+    try {
+      const walletSummary = await this.walletService.getFinancialSummary();
+      completedPayouts = Number(walletSummary?.byStatusAmount?.transferred || 0);
+    } catch (err) {
+      this.logger.warn('Could not load wallet financial summary for reports', err);
+    }
+
+    const platformCommission = +(totalRevenue * 0.05).toFixed(2);
 
     return {
       totalRevenue,
       customerPayments: totalRevenue,
-      agentPayouts: +(totalRevenue * 0.7).toFixed(2),
-      platformCommission: +(totalRevenue * 0.05).toFixed(2),
+      agentPayouts: completedPayouts,
+      platformCommission,
       totalUsers,
       totalAgents,
       totalProducts,
+      totalOrders,
+    };
+  }
+
+  async getSystemHealth() {
+    let dbStatus = 'Connected';
+    let dbLatencyMs = 0;
+    let isDbHealthy = true;
+
+    try {
+      const start = Date.now();
+      await this.userRepo.query('SELECT 1');
+      dbLatencyMs = Date.now() - start;
+      dbStatus = 'Connected';
+      isDbHealthy = true;
+    } catch (err) {
+      this.logger.error('Database health check failed', err);
+      dbStatus = 'Disconnected';
+      isDbHealthy = false;
+    }
+
+    const uptimeSeconds = Math.floor(process.uptime());
+    const days = Math.floor(uptimeSeconds / (3600 * 24));
+    const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const uptimeFormatted = days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
+
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+    const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+
+    const healthScore = isDbHealthy ? (dbLatencyMs < 200 ? 100 : 85) : 0;
+    const apiStatus = isDbHealthy ? 'Healthy' : 'Degraded';
+
+    return {
+      status: isDbHealthy ? 'OK' : 'DEGRADED',
+      apiStatus,
+      uptime: uptimeFormatted,
+      uptimePercentage: '99.9%',
+      uptimeSeconds,
+      database: {
+        status: dbStatus,
+        connected: isDbHealthy,
+        latencyMs: dbLatencyMs,
+        latency: `${dbLatencyMs}ms`,
+        type: 'PostgreSQL',
+      },
+      dbLoad: `${dbLatencyMs}ms (${dbStatus})`,
+      errors: '0',
+      healthScore,
+      system: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        memory: {
+          heapUsedMB,
+          heapTotalMB,
+          rssMB,
+        },
+      },
+      timestamp: new Date().toISOString(),
     };
   }
 
   async getProjectPerformance() {
-    const total = await this.orderRepo.count();
-    const completed = await this.orderRepo.count({ where: { isPaid: true } });
-    const inProgress = total - completed;
+    const totalOrders = await this.orderRepo.count();
+    const completedOrders = await this.orderRepo.count({ where: { isPaid: true } });
+    const inProgressOrders = totalOrders - completedOrders;
+    const completionRate =
+      totalOrders > 0
+        ? +((completedOrders / totalOrders) * 100).toFixed(1)
+        : 0;
+
+    const totalAgents = await this.agentRepo.count();
+    const approvedAgents = await this.agentRepo.count({
+      where: { registrationStatus: AgentRegistrationStatus.APPROVED },
+    });
+    const agentApprovalRate =
+      totalAgents > 0
+        ? +((approvedAgents / totalAgents) * 100).toFixed(1)
+        : 0;
+
+    const totalProducts = await this.marketProductRepo.count();
+    const approvedProducts = await this.marketProductRepo.count({
+      where: { status: MarketProductStatus.APPROVED },
+    });
+    const productApprovalRate =
+      totalProducts > 0
+        ? +((approvedProducts / totalProducts) * 100).toFixed(1)
+        : 0;
+
+    const totalUsers = await this.userRepo.count();
+    const verifiedUsers = await this.userRepo.count({
+      where: { isEmailVerified: true },
+    });
+    const userVerificationRate =
+      totalUsers > 0
+        ? +((verifiedUsers / totalUsers) * 100).toFixed(1)
+        : 0;
+
     return {
-      total,
-      completed,
-      inProgress,
+      total: totalOrders,
+      completed: completedOrders,
+      inProgress: inProgressOrders,
       disputed: 0,
       cancelled: 0,
-      completionRate: total > 0 ? +((completed / total) * 100).toFixed(1) : 0,
+      completionRate,
+      totalOrders,
+      completedOrders,
+      inProgressOrders,
+      totalAgents,
+      approvedAgents,
+      agentApprovalRate,
+      totalProducts,
+      approvedProducts,
+      productApprovalRate,
+      totalUsers,
+      verifiedUsers,
+      userVerificationRate,
     };
   }
 
@@ -1204,13 +1351,13 @@ export class AdminService {
 
     const data = await Promise.all(
       months.map(async (m) => {
-        const start = new Date(m.year, m.month, 1);
-        const end = new Date(m.year, m.month + 1, 0, 23, 59, 59);
+        const start = new Date(m.year, m.month, 1, 0, 0, 0, 0);
+        const end = new Date(m.year, m.month + 1, 0, 23, 59, 59, 999);
         const orders = await this.orderRepo.find({
-          where: { isPaid: true, createdAt: MoreThanOrEqual(start) },
+          where: { isPaid: true, createdAt: Between(start, end) },
         });
-        const revenue = orders.reduce((s, o) => s + Number(o.grandTotal), 0);
-        return { month: m.label, revenue };
+        const revenue = orders.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+        return { month: m.label, revenue, orderCount: orders.length };
       }),
     );
 
@@ -1224,26 +1371,47 @@ export class AdminService {
       order: { createdAt: 'DESC' },
     });
 
-    const data = await Promise.all(agents.map(async (a) => {
-      const productsCount = await this.marketProductRepo.count({
-        where: { agentId: a.id, status: MarketProductStatus.APPROVED }
-      });
-      const products = await this.marketProductRepo.find({
-        where: { agentId: a.id }
-      });
-      const totalRating = products.reduce((acc, p) => acc + Number(p.averageRating), 0);
-      const avgRating = products.length > 0 ? +(totalRating / products.length).toFixed(1) : 0;
+    const data = await Promise.all(
+      agents.map(async (a) => {
+        const productsCount = await this.marketProductRepo.count({
+          where: { agentId: a.id, status: MarketProductStatus.APPROVED },
+        });
+        const products = await this.marketProductRepo.find({
+          where: { agentId: a.id },
+        });
+        const totalRating = products.reduce(
+          (acc, p) => acc + Number(p.averageRating || 0),
+          0,
+        );
+        const avgRating =
+          products.length > 0
+            ? +(totalRating / products.length).toFixed(1)
+            : 0;
 
-      return {
-        id: a.id,
-        name: a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown',
-        avatar: a.user?.profilePics || a.profile?.profilePicture || null,
-        rating: avgRating,
-        projectsCompleted: productsCount,
-        earnings: a.wallet ? Number(a.wallet.lifetimeEarnings) : 0,
-        completionRate: productsCount > 0 ? '90%' : 'N/A'
-      };
-    }));
+        const totalProducts = products.length;
+        const completionRate =
+          totalProducts > 0
+            ? `${Math.round((productsCount / totalProducts) * 100)}%`
+            : productsCount > 0
+            ? '100%'
+            : '0%';
+
+        const agentName = a.user
+          ? `${a.user.firstName || ''} ${a.user.lastName || ''}`.trim()
+          : 'Agent';
+
+        return {
+          id: a.id,
+          name: agentName || 'Agent',
+          email: a.user?.email || null,
+          avatar: a.user?.profilePics || a.profile?.profilePicture || null,
+          rating: avgRating,
+          projectsCompleted: productsCount,
+          earnings: a.wallet ? Number(a.wallet.lifetimeEarnings || a.wallet.balance || 0) : 0,
+          completionRate,
+        };
+      }),
+    );
 
     data.sort((x, y) => y.earnings - x.earnings || y.rating - x.rating);
 
@@ -1257,13 +1425,24 @@ export class AdminService {
       take: 20,
     });
 
-    const data = recent.map((o) => ({
-      userId: o.userId,
-      customer: o.user ? `${o.user.firstName} ${o.user.lastName}` : 'Unknown',
-      action: o.isPaid ? 'Payment made' : 'Order placed',
-      amount: o.grandTotal,
-      date: o.createdAt,
-    }));
+    const data = recent.map((o) => {
+      const customerName = o.user
+        ? `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim()
+        : o.billingInfo?.firstName
+        ? `${o.billingInfo.firstName || ''} ${o.billingInfo.lastName || ''}`.trim()
+        : 'Customer';
+
+      return {
+        id: o.id,
+        userId: o.userId,
+        customer: customerName || 'Customer',
+        email: o.user?.email || o.billingInfo?.email || '',
+        action: o.isPaid ? 'Payment completed' : 'Order placed',
+        status: o.isPaid ? 'Paid' : 'Pending',
+        amount: Number(o.grandTotal || 0),
+        date: o.createdAt,
+      };
+    });
 
     return { data };
   }
@@ -1408,7 +1587,7 @@ export class AdminService {
   async getAdminProfile(adminId: string) {
     const admin = await this.adminRepo.findOne({
       where: { id: adminId },
-      relations: ['user'],
+      relations: ['user', 'user.address'],
     });
     if (!admin) throw new NotFoundException('Admin not found');
     const { password, loginVerificationToken, ...safeUser } = admin.user as any;
@@ -1418,16 +1597,47 @@ export class AdminService {
   async updateAdminProfile(adminId: string, dto: any) {
     const admin = await this.adminRepo.findOne({
       where: { id: adminId },
-      relations: ['user'],
+      relations: ['user', 'user.address'],
     });
     if (!admin) throw new NotFoundException('Admin not found');
     const user = admin.user;
+
     if (dto.firstName) user.firstName = dto.firstName;
     if (dto.lastName) user.lastName = dto.lastName;
-    if (dto.phoneNumber) user.phoneNumber = dto.phoneNumber;
+    if (dto.email) user.email = dto.email;
+    if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber;
     if (dto.profilePics) user.profilePics = dto.profilePics;
+
+    if (dto.street || dto.city || dto.state || dto.country || dto.address) {
+      if (!user.address) {
+        user.address = this.userRepo.manager.create(UserAddress, {
+          street: dto.street || dto.address || '',
+          city: dto.city || '',
+          state: dto.state || '',
+          country: dto.country || '',
+        });
+      } else {
+        if (dto.street || dto.address) user.address.street = dto.street || dto.address;
+        if (dto.city) user.address.city = dto.city;
+        if (dto.state) user.address.state = dto.state;
+        if (dto.country) user.address.country = dto.country;
+      }
+    }
+
     await this.userRepo.save(user);
-    return { success: true, message: 'Profile updated' };
+    return {
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        profilePics: user.profilePics,
+        address: user.address,
+      },
+    };
   }
 
   async changeAdminPassword(

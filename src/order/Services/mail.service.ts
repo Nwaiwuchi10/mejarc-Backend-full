@@ -374,15 +374,30 @@ export class MailService {
 
           const formatFiles = (planField: string[] | string, label: string) => {
             let html = '';
+            let links: string[] = [];
             if (Array.isArray(planField)) {
-              planField.forEach((link, i) => {
-                if (link) {
-                  html += `<li><a href="${link}" style="color: #4CAF50; text-decoration: none; font-weight: bold;">Download ${label} File ${i + 1}</a></li>`;
-                }
-              });
-            } else if (planField) {
-              html += `<li><a href="${planField}" style="color: #4CAF50; text-decoration: none; font-weight: bold;">Download ${label}</a></li>`;
+              links = planField;
+            } else if (typeof planField === 'string' && planField.trim().length > 0) {
+              links = planField.includes(',') ? planField.split(',').map((s) => s.trim()) : [planField.trim()];
             }
+
+            links.filter(Boolean).forEach((link, i) => {
+              const rawFileName = decodeURIComponent(link.split('/').pop()?.split('?')[0] || `File-${i + 1}`);
+              const ext = rawFileName.split('.').pop()?.toUpperCase() || '';
+              const typeBadge = ext ? ` [${ext}]` : '';
+              html += `<li style="margin-bottom: 10px; list-style: none;">
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <span style="font-weight: bold; color: #1e293b; font-size: 13px;">${label} ${links.length > 1 ? `#${i + 1}` : ''}</span>
+                    <span style="display: inline-block; background-color: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">${typeBadge || 'FILE'}</span>
+                    <p style="margin: 3px 0 0; font-size: 11px; color: #64748b; word-break: break-all;">${rawFileName}</p>
+                  </div>
+                  <div>
+                    <a href="${link}" target="_blank" style="background-color: #3b82f6; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 12px; padding: 6px 12px; border-radius: 6px; display: inline-block;">Download</a>
+                  </div>
+                </div>
+              </li>`;
+            });
             return html;
           };
 
@@ -392,7 +407,7 @@ export class MailService {
           filesHtml += formatFiles(item?.product?.mechanicalPlan, 'Mechanical Plan');
 
           if (filesHtml === '<ul style="padding-left: 20px;">') {
-            filesHtml += '<li>No files available for download yet. Please contact support.</li>';
+            filesHtml += '<li style="list-style: none; color: #888; font-size: 13px;">No files available for download yet. Please contact support.</li>';
           }
           filesHtml += '</ul>';
 

@@ -7,6 +7,7 @@ import { WalletTransaction } from './entities/wallet-transaction.entity';
 import { WithdrawalRequest } from './entities/withdrawal-request.entity';
 import { BankAccount } from './entities/bank-account.entity';
 import { WithdrawalAuditLog } from './entities/withdrawal-audit-log.entity';
+import { SystemSetting } from './entities/system-setting.entity';
 import { AgentModule } from '../agent/agent.module';
 import { UserModule } from '../user/user.module';
 import { User } from 'src/user/entities/user.entity';
@@ -27,6 +28,7 @@ import { WithdrawalQueueService } from './services/withdrawal-queue.service';
       WithdrawalRequest,
       BankAccount,
       WithdrawalAuditLog,
+      SystemSetting,
       User,
       Agent,
       Admin,

@@ -128,6 +128,15 @@ export class WalletController {
     return this.paystackService.getBankList();
   }
 
+  /**
+   * Get public/vendor withdrawal rules & limits
+   * GET /wallet/rules
+   */
+  @Get('rules')
+  async getWithdrawalRules() {
+    return this.walletService.getWithdrawalSettings();
+  }
+
   // ========================================
   // AGENT WALLET ENDPOINTS
   // ========================================
@@ -179,6 +188,25 @@ export class WalletController {
   // ========================================
   // ADMIN ENDPOINTS
   // ========================================
+
+  @UseGuards(AdminAuthGuard)
+  @Get('admin/withdrawal-settings')
+  getWithdrawalSettings() {
+    return this.walletService.getWithdrawalSettings();
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch('admin/withdrawal-settings')
+  updateWithdrawalSettings(
+    @Body()
+    dto: {
+      mode?: 'AUTO' | 'MANUAL';
+      autoApproveThreshold?: number;
+      minWithdrawalAmount?: number;
+    },
+  ) {
+    return this.walletService.updateWithdrawalSettings(dto);
+  }
 
   @UseGuards(AdminAuthGuard)
   @Get('admin/withdrawals')

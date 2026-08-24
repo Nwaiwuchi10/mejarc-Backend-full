@@ -36,6 +36,10 @@ export class CreateMarketproductDto {
     @IsOptional()
     numFloors?: string;
 
+    @IsString()
+    @IsOptional()
+    area?: string;
+
     @IsNumber()
     @Type(() => Number)
     price: number;

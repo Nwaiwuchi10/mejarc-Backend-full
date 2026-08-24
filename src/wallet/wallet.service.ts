@@ -15,6 +15,7 @@ import {
   WithdrawalRequest,
   WithdrawalStatus,
 } from './entities/withdrawal-request.entity';
+import { SystemSetting } from './entities/system-setting.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { WithdrawDto } from './dto/withdraw.dto';
 import { NotificationService } from '../notification/notification.service';
@@ -32,6 +33,8 @@ export class WalletService {
     private readonly transactionRepository: Repository<WalletTransaction>,
     @InjectRepository(WithdrawalRequest)
     private readonly withdrawalRepository: Repository<WithdrawalRequest>,
+    @InjectRepository(SystemSetting)
+    private readonly settingRepository: Repository<SystemSetting>,
     @InjectRepository(Agent)
     private readonly agentRepository: Repository<Agent>,
     @InjectRepository(Admin)
@@ -114,6 +117,83 @@ export class WalletService {
     });
   }
 
+  async getWithdrawalSettings() {
+    let setting = await this.settingRepository.findOne({
+      where: { key: 'WITHDRAWAL_SETTINGS' },
+    });
+
+    if (!setting) {
+      setting = this.settingRepository.create({
+        key: 'WITHDRAWAL_SETTINGS',
+        value: {
+          mode: 'AUTO', // 'AUTO' | 'MANUAL'
+          autoApproveThreshold: 100000,
+          minWithdrawalAmount: 1000,
+          maxWithdrawalAmount: 5000000,
+        },
+        description: 'Vendor payment and withdrawal mode configuration',
+      });
+      await this.settingRepository.save(setting);
+    } else if (setting.value && setting.value.maxWithdrawalAmount === undefined) {
+      setting.value.maxWithdrawalAmount = 5000000;
+      await this.settingRepository.save(setting);
+    }
+
+    return setting.value;
+  }
+
+  async updateWithdrawalSettings(dto: {
+    mode?: 'AUTO' | 'MANUAL';
+    autoApproveThreshold?: number;
+    minWithdrawalAmount?: number;
+    maxWithdrawalAmount?: number;
+  }) {
+    let setting = await this.settingRepository.findOne({
+      where: { key: 'WITHDRAWAL_SETTINGS' },
+    });
+
+    const current = setting?.value || {
+      mode: 'AUTO',
+      autoApproveThreshold: 100000,
+      minWithdrawalAmount: 1000,
+      maxWithdrawalAmount: 5000000,
+    };
+
+    if (dto.mode && !['AUTO', 'MANUAL'].includes(dto.mode.toUpperCase())) {
+      throw new BadRequestException('Mode must be either AUTO or MANUAL');
+    }
+
+    const updatedValue = {
+      mode: dto.mode ? dto.mode.toUpperCase() : current.mode,
+      autoApproveThreshold:
+        dto.autoApproveThreshold !== undefined
+          ? Number(dto.autoApproveThreshold)
+          : current.autoApproveThreshold,
+      minWithdrawalAmount:
+        dto.minWithdrawalAmount !== undefined
+          ? Number(dto.minWithdrawalAmount)
+          : current.minWithdrawalAmount,
+      maxWithdrawalAmount:
+        dto.maxWithdrawalAmount !== undefined
+          ? Number(dto.maxWithdrawalAmount)
+          : (current.maxWithdrawalAmount || 5000000),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!setting) {
+      setting = this.settingRepository.create({
+        key: 'WITHDRAWAL_SETTINGS',
+        value: updatedValue,
+        description: 'Vendor payment and withdrawal mode configuration',
+      });
+    } else {
+      setting.value = updatedValue;
+    }
+
+    await this.settingRepository.save(setting);
+    return setting.value;
+  }
+
   async getAllWithdrawals() {
     return this.withdrawalRepository.find({
       relations: ['agent', 'agent.user'],
@@ -153,9 +233,28 @@ export class WalletService {
     // Use details from verified account to ensure accuracy
     const actualAccountDetails = `${verifiedAccount.accountHolderName} - ${verifiedAccount.accountNumber} - ${verifiedAccount.bankName}`;
 
-    // Auto-approve logic: approve immediately if amount < 100,000 NGN
-    const AUTO_APPROVE_THRESHOLD = 100000;
-    const shouldAutoApprove = withdrawalAmount <= AUTO_APPROVE_THRESHOLD;
+    // Get current withdrawal mode & settings
+    const settings = await this.getWithdrawalSettings();
+    const isAutoMode = settings.mode === 'AUTO';
+    const minAmount = settings.minWithdrawalAmount || 1000;
+    const maxAmount = settings.maxWithdrawalAmount || 5000000;
+
+    if (withdrawalAmount < minAmount) {
+      throw new BadRequestException(
+        `Minimum withdrawal amount is ₦${minAmount.toLocaleString()}`,
+      );
+    }
+
+    if (withdrawalAmount > maxAmount) {
+      throw new BadRequestException(
+        `Maximum withdrawal amount per transaction is ₦${maxAmount.toLocaleString()}`,
+      );
+    }
+
+    // Auto-approve logic: approve immediately if in AUTO mode AND amount <= threshold
+    const shouldAutoApprove =
+      isAutoMode &&
+      withdrawalAmount <= (settings.autoApproveThreshold || 100000);
 
     const queryRunner =
       this.walletRepository.manager.connection.createQueryRunner();
@@ -175,10 +274,12 @@ export class WalletService {
       const withdrawalRequest = this.withdrawalRepository.create({
         amount: withdrawalAmount,
         status: status,
-        description: description || '',
+        description:
+          description ||
+          (isAutoMode ? 'Auto-Payout Withdrawal' : 'Manual Vendor Withdrawal'),
         accountDetails: actualAccountDetails,
         agent,
-        autoProcess: true,
+        autoProcess: isAutoMode,
       });
       const savedRequest = await queryRunner.manager.save(withdrawalRequest);
 
@@ -188,7 +289,7 @@ export class WalletService {
         category: TransactionCategory.WITHDRAWAL,
         amount: withdrawalAmount,
         balanceAfter: agent.wallet.balance,
-        description: `Withdrawal Request - ${description || 'No description'}`,
+        description: `Withdrawal Request [${settings.mode}] - ${description || 'No description'}`,
         wallet: agent.wallet,
       });
 
@@ -202,9 +303,15 @@ export class WalletService {
           await this.notificationService.createNotification(
             admin.user.id,
             NotificationType.WITHDRAWAL,
-            'New Withdrawal Request',
-            `Agent ${agent.user?.firstName || 'Unknown'} has requested ₦${withdrawalAmount}. Account: ${accountDetails}`,
-            { withdrawalId: savedRequest.id, amount: withdrawalAmount },
+            isAutoMode
+              ? 'New Auto Withdrawal Request'
+              : 'New Manual Withdrawal Request for Review',
+            `Agent ${agent.user?.firstName || 'Unknown'} requested ₦${withdrawalAmount.toLocaleString()}. Mode: ${settings.mode}. Account: ${actualAccountDetails}`,
+            {
+              withdrawalId: savedRequest.id,
+              amount: withdrawalAmount,
+              mode: settings.mode,
+            },
             'messagesAdmin',
           );
         }
@@ -228,8 +335,11 @@ export class WalletService {
 
       return {
         message: shouldAutoApprove
-          ? 'Withdrawal processed successfully'
-          : 'Withdrawal request submitted successfully for approval',
+          ? 'Withdrawal processed successfully via Auto-Payout'
+          : isAutoMode
+          ? 'Withdrawal request submitted successfully for approval'
+          : 'Withdrawal request submitted for Admin review and manual processing',
+        mode: settings.mode,
         balance: agent.wallet.balance,
         withdrawalRequest: savedRequest,
       };
@@ -252,25 +362,12 @@ export class WalletService {
       throw new BadRequestException(`Request is already ${request.status}`);
     }
 
-    request.status = WithdrawalStatus.APPROVED;
-    request.adminNotes = adminNotes || 'Approved by Admin';
-    await this.withdrawalRepository.save(request);
-
-    // Notify agent
-    if (request.agent?.user) {
-      await this.notificationService.createNotification(
-        request.agent.user.id,
-        NotificationType.WITHDRAWAL,
-        'Withdrawal Approved',
-        `Your withdrawal of ₦${request.amount} has been approved and will be processed automatically.`,
-        { withdrawalId: request.id, amount: request.amount },
-        'paymentSuccessful',
-      );
-    }
-
-    // 3. Trigger processing if it's an auto-process request
     if (request.autoProcess) {
-      // We don't await here to return success to admin immediately while processing continues in background
+      // Auto Mode: Admin approved above-threshold request to trigger Paystack queue
+      request.status = WithdrawalStatus.APPROVED;
+      request.adminNotes = adminNotes || 'Approved by Admin for automated processing';
+      await this.withdrawalRepository.save(request);
+
       this.withdrawalQueueService
         .processWithdrawal({
           withdrawalId: request.id,
@@ -280,10 +377,34 @@ export class WalletService {
         .catch((err) => {
           console.error(`Error initiating auto-withdrawal ${request.id}:`, err);
         });
+    } else {
+      // Manual Mode: Admin vetted and completed payment manually
+      request.status = WithdrawalStatus.TRANSFERRED;
+      request.adminNotes = adminNotes || 'Vetted and paid manually by Admin';
+      request.transferCompletedAt = new Date();
+      await this.withdrawalRepository.save(request);
+    }
+
+    // Notify agent
+    if (request.agent?.user) {
+      const msg = request.autoProcess
+        ? `Your withdrawal of ₦${Number(request.amount).toLocaleString()} has been approved and is being processed via auto-payout.`
+        : `Your withdrawal of ₦${Number(request.amount).toLocaleString()} has been approved and paid to your bank account.`;
+
+      await this.notificationService.createNotification(
+        request.agent.user.id,
+        NotificationType.WITHDRAWAL,
+        'Withdrawal Approved',
+        msg,
+        { withdrawalId: request.id, amount: request.amount },
+        'paymentSuccessful',
+      );
     }
 
     return {
-      message: 'Withdrawal approved successfully',
+      message: request.autoProcess
+        ? 'Withdrawal approved for automated Paystack transfer'
+        : 'Manual withdrawal approved and marked as paid',
       processing: request.autoProcess,
       request,
     };

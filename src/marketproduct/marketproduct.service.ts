@@ -239,21 +239,43 @@ export class MarketproductService {
     // 1. Apply DTO updates first
     Object.assign(product, updateMarketproductDto);
 
-    // 2. Map new S3 URLs if provided (overrides DTO values if both present)
-    if (files?.productImage?.length) {
-      product.productImage = files.productImage.map((f: any) => f.location);
+    const parseFieldUrls = (dtoField: any): string[] => {
+      if (Array.isArray(dtoField)) return dtoField;
+      if (typeof dtoField === 'string' && dtoField.trim().length > 0) {
+        return dtoField.includes(',') ? dtoField.split(',').map((s: string) => s.trim()) : [dtoField.trim()];
+      }
+      return [];
+    };
+
+    // 2. Map & merge S3 URLs
+    const newImages = files?.productImage?.map((f: any) => f.location) || [];
+    const existingImages = parseFieldUrls(updateMarketproductDto.productImage);
+    if (newImages.length > 0 || updateMarketproductDto.productImage !== undefined) {
+      product.productImage = [...existingImages, ...newImages];
     }
-    if (files?.architecturalPlan?.length) {
-      product.architecturalPlan = files.architecturalPlan.map((f: any) => f.location);
+
+    const newArch = files?.architecturalPlan?.map((f: any) => f.location) || [];
+    const existingArch = parseFieldUrls(updateMarketproductDto.architecturalPlan);
+    if (newArch.length > 0 || updateMarketproductDto.architecturalPlan !== undefined) {
+      product.architecturalPlan = [...existingArch, ...newArch];
     }
-    if (files?.structuralPlan?.length) {
-      product.structuralPlan = files.structuralPlan.map((f: any) => f.location);
+
+    const newStruct = files?.structuralPlan?.map((f: any) => f.location) || [];
+    const existingStruct = parseFieldUrls(updateMarketproductDto.structuralPlan);
+    if (newStruct.length > 0 || updateMarketproductDto.structuralPlan !== undefined) {
+      product.structuralPlan = [...existingStruct, ...newStruct];
     }
-    if (files?.electricalPlan?.length) {
-      product.electricalPlan = files.electricalPlan.map((f: any) => f.location);
+
+    const newElect = files?.electricalPlan?.map((f: any) => f.location) || [];
+    const existingElect = parseFieldUrls(updateMarketproductDto.electricalPlan);
+    if (newElect.length > 0 || updateMarketproductDto.electricalPlan !== undefined) {
+      product.electricalPlan = [...existingElect, ...newElect];
     }
-    if (files?.mechanicalPlan?.length) {
-      product.mechanicalPlan = files.mechanicalPlan.map((f: any) => f.location);
+
+    const newMech = files?.mechanicalPlan?.map((f: any) => f.location) || [];
+    const existingMech = parseFieldUrls(updateMarketproductDto.mechanicalPlan);
+    if (newMech.length > 0 || updateMarketproductDto.mechanicalPlan !== undefined) {
+      product.mechanicalPlan = [...existingMech, ...newMech];
     }
 
     const updatedProduct = await this.productRepo.save(product);
