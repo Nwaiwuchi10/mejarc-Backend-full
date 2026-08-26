@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,7 +18,11 @@ import { Inject, forwardRef } from '@nestjs/common';
 import { Admin } from './entities/admin.entity';
 import { User } from '../user/entities/user.entity';
 import { UserAddress } from '../user/entities/user-adress.entity';
-import { Agent, AgentRegistrationStatus, AgentKycStatus } from '../agent/entities/agent.entity';
+import {
+  Agent,
+  AgentRegistrationStatus,
+  AgentKycStatus,
+} from '../agent/entities/agent.entity';
 import { AgentService } from '../agent/agent.service';
 import { AgentMailService } from '../agent/service/mail.service';
 import { MailService } from '../user/service/mail.service';
@@ -84,6 +89,43 @@ export class AdminService {
     return {
       success: true,
       message: `User has been promoted to admin`,
+      admin: adminData,
+    };
+  }
+
+  /**
+   * One-time bootstrap endpoint to promote the first user to admin by email.
+   * Disables itself permanently once any admin exists in the system.
+   */
+  async bootstrapFirstAdmin(email: string) {
+    const adminCount = await this.adminRepo.count();
+    if (adminCount > 0) {
+      throw new ForbiddenException(
+        'Bootstrap endpoint is disabled. Admins already exist in the system.',
+      );
+    }
+
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const user = await this.userRepo.findOne({ where: { email: cleanEmail } });
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found.`);
+    }
+
+    const admin = this.adminRepo.create({
+      userId: user.id,
+      user,
+      role: 'superadmin',
+      isAdmin: true,
+      isActive: true,
+    });
+
+    const saved = await this.adminRepo.save(admin);
+    this.logger.log(`Bootstrap: User ${user.email} promoted to first admin successfully.`);
+
+    const { user: _u, ...adminData } = saved;
+    return {
+      success: true,
+      message: `User ${user.email} has been successfully promoted to the first admin. This endpoint is now disabled.`,
       admin: adminData,
     };
   }
@@ -247,7 +289,8 @@ export class AdminService {
     const { page = 1, limit = 20, search, status, businessType } = query;
     const skip = (page - 1) * limit;
 
-    const qb = this.agentRepo.createQueryBuilder('agent')
+    const qb = this.agentRepo
+      .createQueryBuilder('agent')
       .leftJoinAndSelect('agent.user', 'user')
       .leftJoinAndSelect('agent.profile', 'profile')
       .leftJoinAndSelect('agent.kycRecords', 'kycRecords');
@@ -255,7 +298,12 @@ export class AdminService {
     if (status && status !== 'All') {
       if (status === 'Pending') {
         qb.andWhere('agent.registrationStatus IN (:...statuses)', {
-          statuses: ['awaiting_approval', 'kyc_pending', 'bio_pending', 'profile_pending'],
+          statuses: [
+            'awaiting_approval',
+            'kyc_pending',
+            'bio_pending',
+            'profile_pending',
+          ],
         });
       } else if (status === 'Approved') {
         qb.andWhere("agent.registrationStatus = 'approved'");
@@ -269,14 +317,15 @@ export class AdminService {
     }
 
     if (search) {
-      qb.andWhere('(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search OR agent.businessName ILIKE :search)', {
-        search: `%${search}%`,
-      });
+      qb.andWhere(
+        '(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search OR agent.businessName ILIKE :search)',
+        {
+          search: `%${search}%`,
+        },
+      );
     }
 
-    qb.orderBy('agent.createdAt', 'DESC')
-      .take(limit)
-      .skip(skip);
+    qb.orderBy('agent.createdAt', 'DESC').take(limit).skip(skip);
 
     const [agents, total] = await qb.getManyAndCount();
 
@@ -290,7 +339,9 @@ export class AdminService {
 
       return {
         id: agent.id,
-        name: agent.user ? `${agent.user.firstName} ${agent.user.lastName}` : agent.businessName || 'Agent',
+        name: agent.user
+          ? `${agent.user.firstName} ${agent.user.lastName}`
+          : agent.businessName || 'Agent',
         email: agent.user?.email || '',
         businessType: agent.profile?.preferredTitle || 'Building Designer',
         status: mappedStatus,
@@ -387,7 +438,7 @@ export class AdminService {
     //     );
     // } catch (e) {}
 
-    return { success: true }; 
+    return { success: true };
   }
 
   async rejectAgent(agentId: string, reason?: string) {
@@ -538,9 +589,15 @@ export class AdminService {
     const { page = 1, limit = 20, search, status, tab, userType } = query;
     const skip = (page - 1) * limit;
 
-    const qb = this.userRepo.createQueryBuilder('user')
+    const qb = this.userRepo
+      .createQueryBuilder('user')
       .leftJoinAndMapOne('user.agent', Agent, 'agent', 'agent.userId = user.id')
-      .leftJoinAndMapOne('user.admin', Admin, 'admin', 'admin.userId = user.id');
+      .leftJoinAndMapOne(
+        'user.admin',
+        Admin,
+        'admin',
+        'admin.userId = user.id',
+      );
 
     const effectiveTab = tab || userType;
 
@@ -563,21 +620,28 @@ export class AdminService {
       if (status === 'Disabled') {
         qb.andWhere('user.isSuspended = :suspended', { suspended: true });
       } else if (status === 'Active') {
-        qb.andWhere('user.isSuspended = :suspended AND user.isEmailVerified = :verified', { suspended: false, verified: true });
+        qb.andWhere(
+          'user.isSuspended = :suspended AND user.isEmailVerified = :verified',
+          { suspended: false, verified: true },
+        );
       } else if (status === 'Pending') {
-        qb.andWhere('user.isSuspended = :suspended AND user.isEmailVerified = :verified', { suspended: false, verified: false });
+        qb.andWhere(
+          'user.isSuspended = :suspended AND user.isEmailVerified = :verified',
+          { suspended: false, verified: false },
+        );
       }
     }
 
     if (search) {
-      qb.andWhere('(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)', {
-        search: `%${search}%`,
-      });
+      qb.andWhere(
+        '(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)',
+        {
+          search: `%${search}%`,
+        },
+      );
     }
 
-    qb.orderBy('user.createdAt', 'DESC')
-      .take(limit)
-      .skip(skip);
+    qb.orderBy('user.createdAt', 'DESC').take(limit).skip(skip);
 
     const [users, total] = await qb.getManyAndCount();
 
@@ -690,7 +754,8 @@ export class AdminService {
         ? `${c.lastMessage.author.firstName || ''} ${c.lastMessage.author.lastName || ''}`.trim()
         : null;
 
-      const unreadTotal = c.members?.reduce((acc, m) => acc + (m.unreadCount || 0), 0) || 0;
+      const unreadTotal =
+        c.members?.reduce((acc, m) => acc + (m.unreadCount || 0), 0) || 0;
 
       return {
         id: c.id,
@@ -811,7 +876,10 @@ export class AdminService {
     return {
       totalRevenue,
       customerPayments: totalRevenue,
-      pendingPayouts: walletSummary.byStatusAmount.pending + walletSummary.byStatusAmount.approved + walletSummary.byStatusAmount.processing,
+      pendingPayouts:
+        walletSummary.byStatusAmount.pending +
+        walletSummary.byStatusAmount.approved +
+        walletSummary.byStatusAmount.processing,
       completedPayouts: walletSummary.byStatusAmount.transferred,
       platformCommission: +(totalRevenue * 0.05).toFixed(2),
       totalOrders: orderCount,
@@ -838,9 +906,17 @@ export class AdminService {
     });
 
     const data = orders.map((o) => {
-      const productNames = o.orderItems?.map(item => item.product?.title).filter(Boolean).join(', ') || o.projectDsc || 'Marketplace Order';
+      const productNames =
+        o.orderItems
+          ?.map((item) => item.product?.title)
+          .filter(Boolean)
+          .join(', ') ||
+        o.projectDsc ||
+        'Marketplace Order';
       const channel = o.payStackPayment?.channel;
-      const formattedChannel = channel ? (channel.charAt(0).toUpperCase() + channel.slice(1)) : 'Card';
+      const formattedChannel = channel
+        ? channel.charAt(0).toUpperCase() + channel.slice(1)
+        : 'Card';
       return {
         id: o.id,
         customer: o.user ? `${o.user.firstName} ${o.user.lastName}` : 'Unknown',
@@ -863,7 +939,8 @@ export class AdminService {
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
-    const withdrawalRequestRepo = this.marketProductRepo.manager.getRepository(WithdrawalRequest);
+    const withdrawalRequestRepo =
+      this.marketProductRepo.manager.getRepository(WithdrawalRequest);
     const [requests, total] = await withdrawalRequestRepo.findAndCount({
       relations: ['agent', 'agent.user', 'agent.profile'],
       order: { createdAt: 'DESC' },
@@ -873,8 +950,11 @@ export class AdminService {
 
     const data = requests.map((r) => ({
       id: r.id,
-      agent: r.agent?.user ? `${r.agent.user.firstName} ${r.agent.user.lastName}` : 'Unknown',
-      avatar: r.agent?.user?.profilePics || r.agent?.profile?.profilePicture || null,
+      agent: r.agent?.user
+        ? `${r.agent.user.firstName} ${r.agent.user.lastName}`
+        : 'Unknown',
+      avatar:
+        r.agent?.user?.profilePics || r.agent?.profile?.profilePicture || null,
       project: r.description || 'Withdrawal Request',
       amount: Number(r.amount),
       status: r.status,
@@ -885,7 +965,10 @@ export class AdminService {
       date: r.createdAt,
     }));
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getDisputes(query: any) {
@@ -993,7 +1076,8 @@ export class AdminService {
         ? `${p.agent.user.firstName} ${p.agent.user.lastName}`
         : 'Unknown',
       agentId: p.agentId,
-      agentAvatar: p.agent?.user?.profilePics || p.agent?.profile?.profilePicture || null,
+      agentAvatar:
+        p.agent?.user?.profilePics || p.agent?.profile?.profilePicture || null,
       createdAt: p.createdAt,
     }));
 
@@ -1201,9 +1285,14 @@ export class AdminService {
     let completedPayouts = 0;
     try {
       const walletSummary = await this.walletService.getFinancialSummary();
-      completedPayouts = Number(walletSummary?.byStatusAmount?.transferred || 0);
+      completedPayouts = Number(
+        walletSummary?.byStatusAmount?.transferred || 0,
+      );
     } catch (err) {
-      this.logger.warn('Could not load wallet financial summary for reports', err);
+      this.logger.warn(
+        'Could not load wallet financial summary for reports',
+        err,
+      );
     }
 
     const platformCommission = +(totalRevenue * 0.05).toFixed(2);
@@ -1241,7 +1330,8 @@ export class AdminService {
     const days = Math.floor(uptimeSeconds / (3600 * 24));
     const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
     const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-    const uptimeFormatted = days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
+    const uptimeFormatted =
+      days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
 
     const memUsage = process.memoryUsage();
     const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
@@ -1282,21 +1372,19 @@ export class AdminService {
 
   async getProjectPerformance() {
     const totalOrders = await this.orderRepo.count();
-    const completedOrders = await this.orderRepo.count({ where: { isPaid: true } });
+    const completedOrders = await this.orderRepo.count({
+      where: { isPaid: true },
+    });
     const inProgressOrders = totalOrders - completedOrders;
     const completionRate =
-      totalOrders > 0
-        ? +((completedOrders / totalOrders) * 100).toFixed(1)
-        : 0;
+      totalOrders > 0 ? +((completedOrders / totalOrders) * 100).toFixed(1) : 0;
 
     const totalAgents = await this.agentRepo.count();
     const approvedAgents = await this.agentRepo.count({
       where: { registrationStatus: AgentRegistrationStatus.APPROVED },
     });
     const agentApprovalRate =
-      totalAgents > 0
-        ? +((approvedAgents / totalAgents) * 100).toFixed(1)
-        : 0;
+      totalAgents > 0 ? +((approvedAgents / totalAgents) * 100).toFixed(1) : 0;
 
     const totalProducts = await this.marketProductRepo.count();
     const approvedProducts = await this.marketProductRepo.count({
@@ -1312,9 +1400,7 @@ export class AdminService {
       where: { isEmailVerified: true },
     });
     const userVerificationRate =
-      totalUsers > 0
-        ? +((verifiedUsers / totalUsers) * 100).toFixed(1)
-        : 0;
+      totalUsers > 0 ? +((verifiedUsers / totalUsers) * 100).toFixed(1) : 0;
 
     return {
       total: totalOrders,
@@ -1356,7 +1442,10 @@ export class AdminService {
         const orders = await this.orderRepo.find({
           where: { isPaid: true, createdAt: Between(start, end) },
         });
-        const revenue = orders.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+        const revenue = orders.reduce(
+          (s, o) => s + Number(o.grandTotal || 0),
+          0,
+        );
         return { month: m.label, revenue, orderCount: orders.length };
       }),
     );
@@ -1384,17 +1473,15 @@ export class AdminService {
           0,
         );
         const avgRating =
-          products.length > 0
-            ? +(totalRating / products.length).toFixed(1)
-            : 0;
+          products.length > 0 ? +(totalRating / products.length).toFixed(1) : 0;
 
         const totalProducts = products.length;
         const completionRate =
           totalProducts > 0
             ? `${Math.round((productsCount / totalProducts) * 100)}%`
             : productsCount > 0
-            ? '100%'
-            : '0%';
+              ? '100%'
+              : '0%';
 
         const agentName = a.user
           ? `${a.user.firstName || ''} ${a.user.lastName || ''}`.trim()
@@ -1407,7 +1494,9 @@ export class AdminService {
           avatar: a.user?.profilePics || a.profile?.profilePicture || null,
           rating: avgRating,
           projectsCompleted: productsCount,
-          earnings: a.wallet ? Number(a.wallet.lifetimeEarnings || a.wallet.balance || 0) : 0,
+          earnings: a.wallet
+            ? Number(a.wallet.lifetimeEarnings || a.wallet.balance || 0)
+            : 0,
           completionRate,
         };
       }),
@@ -1429,8 +1518,8 @@ export class AdminService {
       const customerName = o.user
         ? `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim()
         : o.billingInfo?.firstName
-        ? `${o.billingInfo.firstName || ''} ${o.billingInfo.lastName || ''}`.trim()
-        : 'Customer';
+          ? `${o.billingInfo.firstName || ''} ${o.billingInfo.lastName || ''}`.trim()
+          : 'Customer';
 
       return {
         id: o.id,
@@ -1617,7 +1706,8 @@ export class AdminService {
           country: dto.country || '',
         });
       } else {
-        if (dto.street || dto.address) user.address.street = dto.street || dto.address;
+        if (dto.street || dto.address)
+          user.address.street = dto.street || dto.address;
         if (dto.city) user.address.city = dto.city;
         if (dto.state) user.address.state = dto.state;
         if (dto.country) user.address.country = dto.country;

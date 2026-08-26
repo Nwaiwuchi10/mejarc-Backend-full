@@ -6,10 +6,7 @@ import { ContactInquiry } from './entities/contact.entity';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ContactInquiry]),
-    AdminModule,
-  ],
+  imports: [TypeOrmModule.forFeature([ContactInquiry]), AdminModule],
   controllers: [ContactController],
   providers: [ContactService],
   exports: [ContactService],

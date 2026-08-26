@@ -95,7 +95,11 @@ export class CustomDesign {
 
   // ----- Meta -----
 
-  @Column({ type: 'enum', enum: SelectionMethod, default: SelectionMethod.MANUAL })
+  @Column({
+    type: 'enum',
+    enum: SelectionMethod,
+    default: SelectionMethod.MANUAL,
+  })
   selectionMethod: SelectionMethod;
 
   /** Tracks the furthest step reached (1–6). */

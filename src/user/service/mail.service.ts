@@ -45,7 +45,9 @@ export class MailService {
 
       await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err: any) {
-      this.logger.error(`Failed to send onboarding email to ${user.email}: ${err.message || err}`);
+      this.logger.error(
+        `Failed to send onboarding email to ${user.email}: ${err.message || err}`,
+      );
     }
   }
   // === LOGIN MAIL ===
@@ -75,7 +77,9 @@ export class MailService {
 
       await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err: any) {
-      this.logger.error(`Failed to send login alert to ${user.email}: ${err.message || err}`);
+      this.logger.error(
+        `Failed to send login alert to ${user.email}: ${err.message || err}`,
+      );
     }
   }
   // === LOGIN VERIFICATION EMAIL ===
@@ -150,7 +154,9 @@ export class MailService {
     try {
       await this.brevoClient.sendTransacEmail(sendSmtpEmail);
     } catch (err: any) {
-      this.logger.error(`Failed to send verification email to ${email}: ${err.message || err}`);
+      this.logger.error(
+        `Failed to send verification email to ${email}: ${err.message || err}`,
+      );
     }
   }
   async sendPasswordResetEmail(email: string, token: string) {
@@ -208,7 +214,9 @@ export class MailService {
     try {
       await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err: any) {
-      this.logger.error(`Failed to send password reset link to ${email}: ${err.message || err}`);
+      this.logger.error(
+        `Failed to send password reset link to ${email}: ${err.message || err}`,
+      );
     }
   }
 

@@ -1,0 +1,7636 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Welcome greeting / API status"
+          }
+        },
+        "summary": "Application health and root status check",
+        "tags": [
+          "Health / App"
+        ]
+      }
+    },
+    "/user": {
+      "post": {
+        "description": "Registers a user account with multipart form data containing optional profile photo and JSON dto string",
+        "operationId": "UserController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "imgFile": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Profile picture image file (max 100MB)"
+                  },
+                  "dto": {
+                    "type": "string",
+                    "description": "JSON stringified CreateUserDto payload e.g. {\"name\":\"John\",\"email\":\"john@example.com\",\"password\":\"secret\",\"phoneNumber\":\"+1234567890\"}",
+                    "example": "{\"name\":\"John Doe\",\"email\":\"john@example.com\",\"password\":\"Password123!\",\"phoneNumber\":\"+1234567890\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User successfully created"
+          },
+          "400": {
+            "description": "Validation error / email already exists"
+          }
+        },
+        "summary": "Register a new user with optional profile image",
+        "tags": [
+          "User"
+        ]
+      },
+      "get": {
+        "description": "Returns paginated list of users",
+        "operationId": "UserController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated user list"
+          }
+        },
+        "summary": "Get paginated list of all users",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/creates": {
+      "post": {
+        "description": "Alternative JSON-only endpoint for user registration without file upload",
+        "operationId": "UserController_creates",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User successfully created"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        },
+        "summary": "Register user with JSON body",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/login": {
+      "post": {
+        "description": "Validates credentials and sends a 6-digit OTP login verification token to the user email",
+        "operationId": "UserController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP token sent to email"
+          },
+          "401": {
+            "description": "Invalid email or password"
+          }
+        },
+        "summary": "Initiate user login",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/verify-login-token": {
+      "post": {
+        "description": "Verifies the email OTP token and returns the JWT authorization token and user profile",
+        "operationId": "UserController_verifyLoginToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyLoginTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful, returns JWT token"
+          },
+          "400": {
+            "description": "Invalid or expired OTP token"
+          }
+        },
+        "summary": "Verify login OTP token",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/forgot-password": {
+      "post": {
+        "description": "Sends password reset link / token to registered email address",
+        "operationId": "UserController_forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset token dispatched if email exists"
+          }
+        },
+        "summary": "Request password reset token",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/reset-password": {
+      "post": {
+        "description": "Sets a new password using the reset token received via email",
+        "operationId": "UserController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "example": "reset-token-uuid-or-code"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "example": "NewSecurePassword123!"
+                  }
+                },
+                "required": [
+                  "token",
+                  "newPassword"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully"
+          },
+          "400": {
+            "description": "Invalid or expired token"
+          }
+        },
+        "summary": "Reset password with token",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/{id}": {
+      "get": {
+        "operationId": "UserController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "summary": "Get user by ID",
+        "tags": [
+          "User"
+        ]
+      },
+      "delete": {
+        "operationId": "UserController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted"
+          }
+        },
+        "summary": "Delete user by ID",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/profile": {
+      "patch": {
+        "description": "Updates profile information and optional profile picture",
+        "operationId": "UserController_updateProfile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "imgFile": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "New profile photo file"
+                  },
+                  "dto": {
+                    "type": "string",
+                    "description": "JSON stringified UpdateUserDto object",
+                    "example": "{\"name\":\"John Updated\",\"phoneNumber\":\"+1234567890\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update current logged-in user profile",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/user/profile/notification-settings": {
+      "get": {
+        "operationId": "UserController_getNotificationSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Notification settings retrieved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current user notification settings",
+        "tags": [
+          "User"
+        ]
+      },
+      "patch": {
+        "operationId": "UserController_updateNotificationSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notification settings updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update current user notification settings",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/agent/analytics": {
+      "get": {
+        "operationId": "AgentController_getAnalytics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Analytics statistics"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get agent dashboard analytics metrics",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/project-counts": {
+      "get": {
+        "operationId": "AgentController_getProjectCounts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Project counts"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get agent active and total project counts",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/projects": {
+      "get": {
+        "operationId": "AgentController_getProjects",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Projects by category"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get agent projects grouped by category",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/initialize/{userId}": {
+      "post": {
+        "description": "Creates initial agent record for a user after signing up",
+        "operationId": "AgentController_initializeAgent",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Agent initialized"
+          }
+        },
+        "summary": "Initialize agent registration",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/{userId}/profile": {
+      "post": {
+        "description": "Submits agent personal/professional details with optional profile photo",
+        "operationId": "AgentController_submitProfile",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "profilePicture": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Profile picture image file (max 100MB)"
+                  },
+                  "dto": {
+                    "type": "string",
+                    "description": "JSON string of CreateAgentProfileDto",
+                    "example": "{\"profession\":\"Architect\",\"experience\":5,\"companyName\":\"Design Studio\",\"address\":{\"street\":\"123 Main St\",\"city\":\"Lagos\",\"state\":\"Lagos\",\"country\":\"Nigeria\"}}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile submitted successfully"
+          }
+        },
+        "summary": "Agent onboarding Step 1: Submit Profile",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/{agentId}/bio": {
+      "patch": {
+        "description": "Submits agent bio, headline, and specialization tags",
+        "operationId": "AgentController_submitBio",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentBioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bio updated"
+          }
+        },
+        "summary": "Agent onboarding Step 2: Submit Bio & Specialization",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/{agentId}/kyc": {
+      "post": {
+        "description": "Uploads government ID and professional certificates for KYC verification",
+        "operationId": "AgentController_submitKyc",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idDocument": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Government ID document file"
+                  },
+                  "architectCert": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Professional certificate document file"
+                  },
+                  "dto": {
+                    "type": "string",
+                    "description": "JSON string of CreateAgentKycDto",
+                    "example": "{\"idType\":\"NIN\",\"idNumber\":\"12345678901\",\"certNumber\":\"ARCH-9921\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "KYC documents submitted"
+          }
+        },
+        "summary": "Agent onboarding Step 3: Submit KYC Documents",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/user/{userId}": {
+      "get": {
+        "operationId": "AgentController_getAgentByUserId",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent profile details"
+          }
+        },
+        "summary": "Get agent profile by User ID",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/status/{agentId}": {
+      "get": {
+        "operationId": "AgentController_getAgentStatus",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current agent status"
+          }
+        },
+        "summary": "Get agent verification / registration status",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/{agentId}/approve": {
+      "post": {
+        "operationId": "AgentController_approveAgent",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "adminId": {
+                    "type": "string",
+                    "example": "admin-uuid"
+                  }
+                },
+                "required": [
+                  "adminId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent approved"
+          }
+        },
+        "summary": "Approve agent verification (Admin)",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/{agentId}/reject": {
+      "post": {
+        "operationId": "AgentController_rejectAgent",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "adminId": {
+                    "type": "string",
+                    "example": "admin-uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Document unreadable"
+                  }
+                },
+                "required": [
+                  "adminId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent rejected"
+          }
+        },
+        "summary": "Reject agent verification (Admin)",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/pros": {
+      "get": {
+        "operationId": "AgentController_findAllPros",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of verified agents"
+          }
+        },
+        "summary": "Find all verified professionals / agents",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/pros/{id}": {
+      "get": {
+        "operationId": "AgentController_getProById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Professional profile details"
+          }
+        },
+        "summary": "Get single professional agent details for public profile",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent": {
+      "get": {
+        "operationId": "AgentController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of agents"
+          }
+        },
+        "summary": "Get all agents (paginated)",
+        "tags": [
+          "Agent"
+        ]
+      },
+      "post": {
+        "operationId": "AgentController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent created"
+          }
+        },
+        "summary": "Create agent (legacy endpoint)",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/agent/{id}": {
+      "get": {
+        "operationId": "AgentController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent details"
+          }
+        },
+        "summary": "Get agent by ID",
+        "tags": [
+          "Agent"
+        ]
+      },
+      "patch": {
+        "operationId": "AgentController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent updated"
+          }
+        },
+        "summary": "Update agent details",
+        "tags": [
+          "Agent"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent removed"
+          }
+        },
+        "summary": "Delete agent (soft delete)",
+        "tags": [
+          "Agent"
+        ]
+      }
+    },
+    "/notification": {
+      "get": {
+        "operationId": "NotificationController_getUserNotifications",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get paginated notifications for current user",
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/notification/unread-count": {
+      "get": {
+        "operationId": "NotificationController_getUnreadCount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Unread notification count"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get unread notification count for current user",
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/notification/read-all": {
+      "patch": {
+        "operationId": "NotificationController_markAllAsRead",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All marked as read"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Mark all notifications as read for current user",
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/notification/{id}/read": {
+      "patch": {
+        "operationId": "NotificationController_markAsRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Notification ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification marked as read"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Mark a single notification as read",
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/admin/make-admin": {
+      "post": {
+        "operationId": "AdminController_makeAdmin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MakeAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User promoted to admin"
+          }
+        },
+        "summary": "Promote a user to admin role",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/believe/{email}": {
+      "get": {
+        "operationId": "AdminController_bootstrapFirstAdmin",
+        "parameters": [
+          {
+            "name": "email",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "First admin successfully promoted"
+          },
+          "403": {
+            "description": "Forbidden if an admin already exists"
+          }
+        },
+        "summary": "One-time endpoint to bootstrap the first superadmin by email (disables permanently after run)",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/login": {
+      "post": {
+        "operationId": "AdminController_adminLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP sent to admin email"
+          },
+          "401": {
+            "description": "Invalid admin credentials"
+          }
+        },
+        "summary": "Admin login step 1: Validate email/password and dispatch OTP",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/verify-login": {
+      "post": {
+        "operationId": "AdminController_verifyAdminLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyAdminLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin authenticated with JWT token"
+          },
+          "400": {
+            "description": "Invalid or expired OTP token"
+          }
+        },
+        "summary": "Admin login step 2: Verify OTP and receive JWT",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/agents": {
+      "get": {
+        "operationId": "AdminController_getAllAgents",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of agents"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all agents with pagination",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/agents/applications": {
+      "get": {
+        "operationId": "AdminController_getAgentApplications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of agent applications"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get pending agent applications for KYC review",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/agents/{agentId}": {
+      "get": {
+        "operationId": "AdminController_getAgentDetail",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent full details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get full details of a specific agent",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/approve-agent": {
+      "post": {
+        "operationId": "AdminController_approveAgent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agentId": {
+                    "type": "string",
+                    "example": "uuid"
+                  }
+                },
+                "required": [
+                  "agentId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent approved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Approve agent verification",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reject-agent": {
+      "post": {
+        "operationId": "AdminController_rejectAgent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agentId": {
+                    "type": "string",
+                    "example": "uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Document unreadable"
+                  }
+                },
+                "required": [
+                  "agentId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent rejected"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Reject agent verification",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin": {
+      "get": {
+        "operationId": "AdminController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of admins"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "List all admin users",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "AdminController_getUsers",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Filtered user list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "List all users with filtering by role and status",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users/{userId}": {
+      "get": {
+        "operationId": "AdminController_getUserDetail",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User detail"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get single user detail",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users/{userId}/suspend": {
+      "patch": {
+        "operationId": "AdminController_suspendUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User suspended"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Suspend user account",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users/{userId}/activate": {
+      "patch": {
+        "operationId": "AdminController_activateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User activated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Activate user account",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/communication/stats": {
+      "get": {
+        "operationId": "AdminController_getCommunicationStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Communication stats"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get communication dashboard statistics",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/communication/conversations": {
+      "get": {
+        "operationId": "AdminController_getConversations",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "List all conversations for moderation",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/communication/conversations/{conversationId}": {
+      "get": {
+        "operationId": "AdminController_getConversationDetail",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get conversation details",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/communication/conversations/{conversationId}/escalate": {
+      "post": {
+        "operationId": "AdminController_escalateConversation",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminEscalateConversationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversation escalated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Escalate a conversation",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/messages": {
+      "get": {
+        "operationId": "AdminController_getMessages",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "List messages across conversations",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/messages/{conversationId}": {
+      "get": {
+        "operationId": "AdminController_getConversationMessages",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages in conversation"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all messages inside a conversation",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/messages/{conversationId}/reply": {
+      "post": {
+        "operationId": "AdminController_sendMessage",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSendMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reply sent"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Admin replies to a conversation",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/stats": {
+      "get": {
+        "operationId": "AdminController_getFinancialStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Financial stats"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get financial summary and stats",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/transactions": {
+      "get": {
+        "operationId": "AdminController_getTransactions",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all customer transactions",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/payouts": {
+      "get": {
+        "operationId": "AdminController_getPayouts",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payouts list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all agent payouts",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/disputes": {
+      "get": {
+        "operationId": "AdminController_getDisputes",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disputes list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all financial disputes",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/refunds": {
+      "get": {
+        "operationId": "AdminController_getRefunds",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refunds list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all refund requests",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/payouts/{payoutId}/release": {
+      "patch": {
+        "operationId": "AdminController_releasePayout",
+        "parameters": [
+          {
+            "name": "payoutId",
+            "required": true,
+            "in": "path",
+            "description": "Payout UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout released"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Release payout to agent",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/disputes/{disputeId}/resolve": {
+      "patch": {
+        "operationId": "AdminController_resolveDispute",
+        "parameters": [
+          {
+            "name": "disputeId",
+            "required": true,
+            "in": "path",
+            "description": "Dispute UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveDisputeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dispute resolved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Resolve dispute",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/financials/refunds/{refundId}/approve": {
+      "patch": {
+        "operationId": "AdminController_approveRefund",
+        "parameters": [
+          {
+            "name": "refundId",
+            "required": true,
+            "in": "path",
+            "description": "Refund UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund approved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Approve refund",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/marketplace/stats": {
+      "get": {
+        "operationId": "AdminController_getMarketplaceStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Marketplace stats"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get marketplace stats",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/marketplace/listings": {
+      "get": {
+        "operationId": "AdminController_getMarketplaceListings",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marketplace listings"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all marketplace listings for review",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/marketplace/listings/{listingId}": {
+      "get": {
+        "operationId": "AdminController_getMarketplaceListing",
+        "parameters": [
+          {
+            "name": "listingId",
+            "required": true,
+            "in": "path",
+            "description": "Listing UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get marketplace listing detail",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/marketplace/listings/{listingId}/approve": {
+      "patch": {
+        "operationId": "AdminController_approveMarketplaceListing",
+        "parameters": [
+          {
+            "name": "listingId",
+            "required": true,
+            "in": "path",
+            "description": "Listing UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing approved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Approve marketplace product listing",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/marketplace/listings/{listingId}/reject": {
+      "patch": {
+        "operationId": "AdminController_rejectMarketplaceListing",
+        "parameters": [
+          {
+            "name": "listingId",
+            "required": true,
+            "in": "path",
+            "description": "Listing UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminMarketActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Listing rejected"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Reject marketplace product listing",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/marketplace/listings/{listingId}/request-change": {
+      "patch": {
+        "operationId": "AdminController_requestMarketplaceChange",
+        "parameters": [
+          {
+            "name": "listingId",
+            "required": true,
+            "in": "path",
+            "description": "Listing UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRequestChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Change request sent"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Request changes on marketplace product listing",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/stats": {
+      "get": {
+        "operationId": "AdminController_getProjectStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Project stats"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get project oversight statistics",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/customers": {
+      "get": {
+        "operationId": "AdminController_getCustomerProjects",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer projects"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get customer projects",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/agents": {
+      "get": {
+        "operationId": "AdminController_getAgentPerformance",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent project performance"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get agent performance across projects",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/custom": {
+      "get": {
+        "operationId": "AdminController_getCustomProjects",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tab",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Object"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom projects list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get custom design project submissions",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/customers/{projectId}": {
+      "get": {
+        "operationId": "AdminController_getProjectDetail",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "description": "Project UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get customer project detail",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/customers/{projectId}/assign-agent": {
+      "patch": {
+        "operationId": "AdminController_assignAgent",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "description": "Project UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent assigned"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Assign agent to project",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/custom/{submissionId}/approve": {
+      "patch": {
+        "operationId": "AdminController_approveCustomProject",
+        "parameters": [
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "description": "Submission UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom project approved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Approve custom design project submission",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/projects/custom/{submissionId}/reject": {
+      "patch": {
+        "operationId": "AdminController_rejectCustomProject",
+        "parameters": [
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "description": "Submission UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminProjectActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Custom project rejected"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Reject custom design project submission",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reports/summary": {
+      "get": {
+        "operationId": "AdminController_getReportsSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Report summary"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get executive dashboard report summary",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/system-health": {
+      "get": {
+        "operationId": "AdminController_getSystemHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "System health metrics"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get backend system health and metrics",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reports/performance": {
+      "get": {
+        "operationId": "AdminController_getProjectPerformance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Performance report"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get project performance metrics report",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reports/revenue-chart": {
+      "get": {
+        "operationId": "AdminController_getRevenueChart",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Revenue chart data"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get monthly / historical revenue chart data",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reports/top-agents": {
+      "get": {
+        "operationId": "AdminController_getTopAgents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Top agents list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get top performing agents ranking",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reports/customer-activity": {
+      "get": {
+        "operationId": "AdminController_getCustomerActivity",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Customer activity data"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get customer platform activity report",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/roles/stats": {
+      "get": {
+        "operationId": "AdminController_getRolesStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Roles stats"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get roles and permissions statistics",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/roles": {
+      "get": {
+        "operationId": "AdminController_getAllRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Roles list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all admin roles",
+        "tags": [
+          "Admin"
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_createRole",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Create a new admin role",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/roles/{roleId}": {
+      "patch": {
+        "operationId": "AdminController_updateRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "description": "Role UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update an admin role",
+        "tags": [
+          "Admin"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminController_deleteRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "description": "Role UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deleted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Delete an admin role",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/roles/staff": {
+      "get": {
+        "operationId": "AdminController_getStaffList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Staff list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get staff members and their assigned roles",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/roles/staff/{userId}/assign": {
+      "patch": {
+        "operationId": "AdminController_assignRoleToStaff",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role assigned"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Assign a role to staff user",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/roles/permissions": {
+      "get": {
+        "operationId": "AdminController_getPermissionMatrix",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Permissions matrix"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get RBAC permissions matrix",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/settings/profile": {
+      "get": {
+        "operationId": "AdminController_getAdminProfile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Admin profile"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current admin profile",
+        "tags": [
+          "Admin"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminController_updateAdminProfile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin profile updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update current admin profile",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/settings/security/change-password": {
+      "patch": {
+        "operationId": "AdminController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAdminPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Change admin password",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/wallet/bank-account/register": {
+      "post": {
+        "operationId": "WalletController_registerBankAccount",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterBankAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bank account registered"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Register a new bank account for vendor / agent",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/bank-account/verify/{bankAccountId}": {
+      "post": {
+        "operationId": "WalletController_verifyBankAccount",
+        "parameters": [
+          {
+            "name": "bankAccountId",
+            "required": true,
+            "in": "path",
+            "description": "Bank Account ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyBankAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bank account verified"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Verify bank account details via Paystack",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/bank-account": {
+      "get": {
+        "operationId": "WalletController_getBankAccounts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of bank accounts"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all saved bank accounts for the user",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/bank-account/default/{bankAccountId}": {
+      "patch": {
+        "operationId": "WalletController_setDefaultBankAccount",
+        "parameters": [
+          {
+            "name": "bankAccountId",
+            "required": true,
+            "in": "path",
+            "description": "Bank Account ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default bank account updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Set default bank account for payouts",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/bank-account/{bankAccountId}": {
+      "delete": {
+        "operationId": "WalletController_deleteBankAccount",
+        "parameters": [
+          {
+            "name": "bankAccountId",
+            "required": true,
+            "in": "path",
+            "description": "Bank Account ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bank account deleted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Delete a registered bank account",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/banks": {
+      "get": {
+        "operationId": "WalletController_getBanks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Bank list"
+          }
+        },
+        "summary": "Get list of supported banks from Paystack (Public)",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/rules": {
+      "get": {
+        "operationId": "WalletController_getWithdrawalRules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Withdrawal rules"
+          }
+        },
+        "summary": "Get public withdrawal limits and rules",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/overview/{userId}": {
+      "get": {
+        "operationId": "WalletController_getOverview",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wallet overview"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get wallet balances, escrow balance, and pending payouts",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/withdraw": {
+      "post": {
+        "operationId": "WalletController_withdraw",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Withdrawal initiated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Request a funds withdrawal from wallet",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/transactions": {
+      "get": {
+        "operationId": "WalletController_getTransactions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Transaction history"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get transaction history of user",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/withdrawals": {
+      "get": {
+        "operationId": "WalletController_getMyWithdrawals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Withdrawal history"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get withdrawal history of user",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/withdrawals/{withdrawalId}": {
+      "get": {
+        "operationId": "WalletController_getWithdrawalDetails",
+        "parameters": [
+          {
+            "name": "withdrawalId",
+            "required": true,
+            "in": "path",
+            "description": "Withdrawal ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawal details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get specific withdrawal details",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawal-settings": {
+      "get": {
+        "operationId": "WalletController_getWithdrawalSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Settings"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get admin withdrawal settings",
+        "tags": [
+          "Wallet"
+        ]
+      },
+      "patch": {
+        "operationId": "WalletController_updateWithdrawalSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Settings updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update admin withdrawal settings",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawals": {
+      "get": {
+        "operationId": "WalletController_getAllWithdrawals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All withdrawals"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all withdrawals for admin review",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawals/{id}/approve": {
+      "post": {
+        "operationId": "WalletController_approveWithdrawal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Withdrawal ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawal approved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Admin approve withdrawal",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawals/{id}/reject": {
+      "post": {
+        "operationId": "WalletController_rejectWithdrawal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Withdrawal ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawal rejected"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Admin reject withdrawal",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawals/{withdrawalId}/audit-logs": {
+      "get": {
+        "operationId": "WalletController_getWithdrawalAuditLogs",
+        "parameters": [
+          {
+            "name": "withdrawalId",
+            "required": true,
+            "in": "path",
+            "description": "Withdrawal ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit logs"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get audit logs for a specific withdrawal",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/audit-logs": {
+      "get": {
+        "operationId": "WalletController_getAllAuditLogs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Audit logs"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get paginated audit logs for financial reporting",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/audit-logs/action/{action}": {
+      "get": {
+        "operationId": "WalletController_getAuditLogsByAction",
+        "parameters": [
+          {
+            "name": "action",
+            "required": true,
+            "in": "path",
+            "description": "Action type",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action audit logs"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get audit logs filtered by action",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/financials/withdrawal-summary": {
+      "get": {
+        "operationId": "WalletController_getFinancialSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Withdrawal summary"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get financial withdrawal summary",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/financials/reports": {
+      "get": {
+        "operationId": "WalletController_getFinancialReports",
+        "parameters": [
+          {
+            "name": "endDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2024-12-31"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2024-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Financial report"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get financial reports by date range",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/webhook/paystack": {
+      "post": {
+        "operationId": "WalletController_handlePaystackWebhook",
+        "parameters": [
+          {
+            "name": "x-paystack-signature",
+            "required": true,
+            "in": "header",
+            "description": "Paystack HMAC signature",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook processed"
+          }
+        },
+        "summary": "Paystack transfer webhook callback",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawals/retry": {
+      "post": {
+        "operationId": "WalletController_retryFailedWithdrawals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Retried failed withdrawals"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Manual retry for all failed withdrawals",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/admin/withdrawals/retry/{id}": {
+      "post": {
+        "operationId": "WalletController_retrySingleWithdrawal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Withdrawal UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawal retry initiated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Retry a specific failed withdrawal",
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/marketproduct": {
+      "post": {
+        "description": "Uploads product metadata alongside architecture, structural, electrical, and mechanical plan files",
+        "operationId": "MarketproductController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Modern 4-Bedroom Duplex"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Contemporary architectural design with complete structural calculations."
+                  },
+                  "price": {
+                    "type": "number",
+                    "example": 150000
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "Residential"
+                  },
+                  "subCategory": {
+                    "type": "string",
+                    "example": "Duplex"
+                  },
+                  "productImage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Product preview photos / 3D renders"
+                  },
+                  "architecturalPlan": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Architectural blueprints / CAD / PDF files"
+                  },
+                  "structuralPlan": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Structural engineering drawings"
+                  },
+                  "electricalPlan": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Electrical layout plans"
+                  },
+                  "mechanicalPlan": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Mechanical / plumbing plans"
+                  }
+                },
+                "required": [
+                  "title",
+                  "price"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Marketplace product listed successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Agent token required"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Create a new marketplace design product listing (Agent only)",
+        "tags": [
+          "Marketplace Product"
+        ]
+      },
+      "get": {
+        "description": "Retrieve marketplace products with filters for category, price range, search keywords, and pagination",
+        "operationId": "MarketproductController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Residential",
+                "Commercial",
+                "Industrial"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending_review",
+                "approved",
+                "rejected"
+              ]
+            }
+          },
+          {
+            "name": "buildingGuides",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numBedrooms",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numBathrooms",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numFloors",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "area",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "designStyle",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Filtered marketplace product listing"
+          }
+        },
+        "summary": "Search and filter marketplace products",
+        "tags": [
+          "Marketplace Product"
+        ]
+      }
+    },
+    "/marketproduct/agent/{agentId}": {
+      "get": {
+        "operationId": "MarketproductController_findAllByAgent",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Residential",
+                "Commercial",
+                "Industrial"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending_review",
+                "approved",
+                "rejected"
+              ]
+            }
+          },
+          {
+            "name": "buildingGuides",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numBedrooms",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numBathrooms",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numFloors",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "area",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "designStyle",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent product listing"
+          }
+        },
+        "summary": "Get all marketplace products published by an agent",
+        "tags": [
+          "Marketplace Product"
+        ]
+      }
+    },
+    "/marketproduct/{id}": {
+      "get": {
+        "operationId": "MarketproductController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Product ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details"
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        },
+        "summary": "Get marketplace product details by ID",
+        "tags": [
+          "Marketplace Product"
+        ]
+      },
+      "patch": {
+        "operationId": "MarketproductController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Product ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMarketproductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update marketplace product (Agent owner only)",
+        "tags": [
+          "Marketplace Product"
+        ]
+      },
+      "delete": {
+        "operationId": "MarketproductController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Product ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product deleted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Delete marketplace product (Agent owner only)",
+        "tags": [
+          "Marketplace Product"
+        ]
+      }
+    },
+    "/marketproduct/{id}/rate": {
+      "post": {
+        "operationId": "MarketproductController_rate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Product ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Review submitted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Rate and review a marketplace product",
+        "tags": [
+          "Marketplace Product"
+        ]
+      }
+    },
+    "/order/initialize": {
+      "post": {
+        "operationId": "OrderController_createOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order initialized with payment link / reference"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Initialize a new checkout order / payment intent",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/paystack/webhook": {
+      "post": {
+        "operationId": "OrderController_handlePaystackWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Webhook processed"
+          }
+        },
+        "summary": "Handle Paystack payment webhook",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/paystack/verify": {
+      "get": {
+        "operationId": "OrderController_verifyPayment",
+        "parameters": [
+          {
+            "name": "reference",
+            "required": true,
+            "in": "query",
+            "description": "Paystack transaction reference",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment verification result"
+          }
+        },
+        "summary": "Verify a Paystack payment reference",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/paystack/webhook/test": {
+      "post": {
+        "operationId": "OrderController_handlePaystackWebhooks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Webhook test received"
+          }
+        },
+        "summary": "Test Paystack webhook receiver",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/approved/all": {
+      "get": {
+        "operationId": "OrderController_getAllApprovedOrdersPagination",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Approved orders list"
+          }
+        },
+        "summary": "Get all approved orders with pagination",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/notapproved/all": {
+      "get": {
+        "operationId": "OrderController_getAllNotApprovedOrdersPagination",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Non-approved orders list"
+          }
+        },
+        "summary": "Get all pending / non-approved orders with pagination",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/approved/all/user": {
+      "get": {
+        "operationId": "OrderController_getLoginUserAllApprovedOrdersPagination",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User approved orders"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current user approved orders",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/notapproved/all/user": {
+      "get": {
+        "operationId": "OrderController_getLoginUserAllNotApprovedOrdersPagination",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User pending orders"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current user pending / non-approved orders",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/pag/all": {
+      "get": {
+        "operationId": "OrderController_getAllOrdersPagination",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Paginated orders"
+          }
+        },
+        "summary": "Get all orders with pagination",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/pag/all/user": {
+      "get": {
+        "operationId": "OrderController_getAllLoginUserOrderPagination",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User paginated orders"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all orders of currently logged in user",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/pag/all/{userId}": {
+      "get": {
+        "operationId": "OrderController_findAllUserOrderPagination",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User orders"
+          }
+        },
+        "summary": "Get all orders of a specific user",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order": {
+      "get": {
+        "operationId": "OrderController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Orders list"
+          }
+        },
+        "summary": "Get all orders",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/{id}": {
+      "get": {
+        "operationId": "OrderController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Order ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details"
+          }
+        },
+        "summary": "Get order by ID",
+        "tags": [
+          "Order"
+        ]
+      },
+      "patch": {
+        "operationId": "OrderController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Order ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order updated"
+          }
+        },
+        "summary": "Update order status / details",
+        "tags": [
+          "Order"
+        ]
+      },
+      "delete": {
+        "operationId": "OrderController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Order ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order deleted"
+          }
+        },
+        "summary": "Delete order by ID",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/{id}/comment/new": {
+      "patch": {
+        "operationId": "OrderController_addComment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Order ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment added"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Add a new comment to an order",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/order/{id}/comment": {
+      "patch": {
+        "operationId": "OrderController_addCommentFormData",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Order ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileUrl": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Attachment file (max 50MB)"
+                  },
+                  "comment": {
+                    "type": "string",
+                    "description": "Comment text",
+                    "example": "Please check this revision"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment with attachment added"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Add comment with file attachment to order",
+        "tags": [
+          "Order"
+        ]
+      }
+    },
+    "/custom-design/initialize": {
+      "post": {
+        "operationId": "CustomDesignController_initialize",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Custom design session initialized"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Step 1: Initialize a new custom design wizard session",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design": {
+      "post": {
+        "description": "Uploads all wizard steps and optional reference files at once",
+        "operationId": "CustomDesignController_createAndSubmit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Custom design project submitted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "One-shot submission: Complete wizard and submit custom design project",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/my": {
+      "get": {
+        "operationId": "CustomDesignController_getMyDesigns",
+        "parameters": [
+          {
+            "name": "serviceType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "landscape-design",
+                "interior-design",
+                "product-design",
+                "3d-rendering",
+                "2d-architectural",
+                "building-information-modeling",
+                "mep-drawings",
+                "structural-engineering"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "in_progress",
+                "submitted",
+                "under_review",
+                "approved",
+                "rejected",
+                "completed",
+                "revision"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user custom designs"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current user custom design projects",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/config/{serviceType}": {
+      "get": {
+        "description": "Returns available options, building contexts, scopes, and validation rules for the given service type",
+        "operationId": "CustomDesignController_getServiceConfig",
+        "parameters": [
+          {
+            "name": "serviceType",
+            "required": true,
+            "in": "path",
+            "description": "Service type enum e.g. Architectural, Structural, MEP, Interior",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service configuration returned"
+          }
+        },
+        "summary": "Get dynamic wizard configuration for a service type (Public)",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/user/{userId}": {
+      "get": {
+        "operationId": "CustomDesignController_getByUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "User ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serviceType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "landscape-design",
+                "interior-design",
+                "product-design",
+                "3d-rendering",
+                "2d-architectural",
+                "building-information-modeling",
+                "mep-drawings",
+                "structural-engineering"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "in_progress",
+                "submitted",
+                "under_review",
+                "approved",
+                "rejected",
+                "completed",
+                "revision"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom design list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get custom designs by user ID (Admin/Staff)",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/agent/{agentId}": {
+      "get": {
+        "operationId": "CustomDesignController_getByAgent",
+        "parameters": [
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "description": "Agent ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serviceType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "landscape-design",
+                "interior-design",
+                "product-design",
+                "3d-rendering",
+                "2d-architectural",
+                "building-information-modeling",
+                "mep-drawings",
+                "structural-engineering"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "in_progress",
+                "submitted",
+                "under_review",
+                "approved",
+                "rejected",
+                "completed",
+                "revision"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom design list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get custom designs assigned to an agent",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}": {
+      "get": {
+        "operationId": "CustomDesignController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom design project details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get custom design project details by ID",
+        "tags": [
+          "Custom Design"
+        ]
+      },
+      "patch": {
+        "operationId": "CustomDesignController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Custom design updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update custom design draft",
+        "tags": [
+          "Custom Design"
+        ]
+      },
+      "delete": {
+        "operationId": "CustomDesignController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Custom design deleted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Delete custom design project",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/step": {
+      "patch": {
+        "operationId": "CustomDesignController_saveStep",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveStepDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Step data saved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Save progress for a specific wizard step",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/submit": {
+      "post": {
+        "operationId": "CustomDesignController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft submitted successfully"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Finalize and submit a saved draft project",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/validate-step": {
+      "post": {
+        "operationId": "CustomDesignController_validateStep",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Step validation status"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Validate single step payload against service rules",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/approve": {
+      "post": {
+        "operationId": "CustomDesignController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Admin approve custom design proposal",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/reject": {
+      "post": {
+        "operationId": "CustomDesignController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rejected"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Admin reject custom design proposal",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/agent-approve": {
+      "post": {
+        "operationId": "CustomDesignController_agentApprove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent accepted"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Agent accept assigned custom design project",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/agent-reject": {
+      "post": {
+        "operationId": "CustomDesignController_agentReject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCustomDesignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent declined"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Agent decline assigned custom design project",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/agreed-price": {
+      "post": {
+        "operationId": "CustomDesignController_setAgreedPrice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAgreedPriceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agreed price proposed"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Set agreed price for custom design",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/confirm-price": {
+      "post": {
+        "operationId": "CustomDesignController_confirmAgreedPrice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agreed price confirmed"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Customer confirms the agreed price",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/initialize-payment": {
+      "post": {
+        "operationId": "CustomDesignController_initializePayment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment initialized with reference"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Initialize Paystack payment for custom design agreed price",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/verify-payment": {
+      "get": {
+        "operationId": "CustomDesignController_verifyPayment",
+        "parameters": [
+          {
+            "name": "reference",
+            "required": true,
+            "in": "query",
+            "description": "Paystack payment reference",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment verified"
+          }
+        },
+        "summary": "Verify custom design payment reference",
+        "tags": [
+          "Custom Design"
+        ]
+      }
+    },
+    "/custom-design/{id}/workspace": {
+      "get": {
+        "operationId": "CustomDesignWorkspaceController_getWorkspace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace data"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get workspace overview, milestones, files, and activity logs",
+        "tags": [
+          "Custom Design Workspace"
+        ]
+      }
+    },
+    "/custom-design/{id}/milestones": {
+      "post": {
+        "operationId": "CustomDesignWorkspaceController_addMilestone",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Schematic Design & Floor Plans"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Initial architectural drawings and layouts"
+                  },
+                  "dueDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 50000
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Milestone created"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Create a milestone for the custom design project",
+        "tags": [
+          "Custom Design Workspace"
+        ]
+      }
+    },
+    "/custom-design/milestones/{mId}": {
+      "patch": {
+        "operationId": "CustomDesignWorkspaceController_updateMilestone",
+        "parameters": [
+          {
+            "name": "mId",
+            "required": true,
+            "in": "path",
+            "description": "Milestone UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "example": "COMPLETED"
+                  },
+                  "progress": {
+                    "type": "number",
+                    "example": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Milestone updated"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update milestone status / progress",
+        "tags": [
+          "Custom Design Workspace"
+        ]
+      }
+    },
+    "/custom-design/{id}/files": {
+      "post": {
+        "operationId": "CustomDesignWorkspaceController_uploadFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Project deliverable or CAD/PDF file"
+                  },
+                  "isDeliverable": {
+                    "type": "string",
+                    "example": "true",
+                    "description": "Boolean flag string indicating if file is a final deliverable"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Upload a deliverable or project attachment to workspace",
+        "tags": [
+          "Custom Design Workspace"
+        ]
+      }
+    },
+    "/custom-design/{id}/activities": {
+      "get": {
+        "operationId": "CustomDesignWorkspaceController_getActivities",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter activity type (or \"all\")",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace activity logs"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get activity logs for the project workspace",
+        "tags": [
+          "Custom Design Workspace"
+        ]
+      }
+    },
+    "/chat/inbox": {
+      "get": {
+        "operationId": "ChatController_getInbox",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User conversations list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current user chat inbox conversations",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/dm-inbox": {
+      "get": {
+        "operationId": "ChatController_getDMInbox",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "DM conversations list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get direct messages inbox",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/start-dm/{recipientId}": {
+      "post": {
+        "operationId": "ChatController_startDM",
+        "parameters": [
+          {
+            "name": "recipientId",
+            "required": true,
+            "in": "path",
+            "description": "Recipient user ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Conversation started or retrieved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Start or retrieve a direct 1-on-1 chat conversation with another user",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/start-custom-design/{customdesignId}": {
+      "post": {
+        "operationId": "ChatController_startCustomDesignChat",
+        "parameters": [
+          {
+            "name": "customdesignId",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Project chat started or retrieved"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Start or retrieve a custom design project conversation",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/custom-design/{customdesignId}": {
+      "get": {
+        "operationId": "ChatController_getByCustomDesignId",
+        "parameters": [
+          {
+            "name": "customdesignId",
+            "required": true,
+            "in": "path",
+            "description": "Custom Design ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation details"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get conversation linked to a custom design project",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/messages/{conversationId}": {
+      "get": {
+        "operationId": "ChatController_getMessages",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages list"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get paginated messages inside a conversation",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/read/{conversationId}": {
+      "post": {
+        "operationId": "ChatController_markAsRead",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marked as read"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Mark all messages in a conversation as read",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/send/{conversationId}": {
+      "post": {
+        "operationId": "ChatController_sendMessage",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "in": "path",
+            "description": "Conversation ID UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "example": "Hello, here is the updated floor plan."
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Optional file attachments (images, documents, max 10 files)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message sent"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Send a message with optional file attachments",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/contact": {
+      "post": {
+        "description": "Submit contact message with optional file/image attachments",
+        "operationId": "ContactController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "+2348012345678"
+                  },
+                  "subject": {
+                    "type": "string",
+                    "example": "General Inquiry"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Hello, I have a question about your architectural plans."
+                  },
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Optional image attachments (max 10, up to 10MB each)"
+                  }
+                },
+                "required": [
+                  "name",
+                  "email",
+                  "phone",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Inquiry submitted successfully"
+          },
+          "400": {
+            "description": "Bad request / validation error"
+          }
+        },
+        "summary": "Submit a contact / support inquiry",
+        "tags": [
+          "Contact"
+        ]
+      },
+      "get": {
+        "description": "Retrieve all submitted contact inquiries (Admin only)",
+        "operationId": "ContactController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of inquiries retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get all contact inquiries",
+        "tags": [
+          "Contact"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Mejarc API",
+    "description": "Comprehensive REST API documentation for Mejarc Backend services, including Authentication, User Management, Agent Management, Marketplace, Custom Design Wizard, Orders, Payments, Wallet & Withdrawals, Notifications, and Real-Time Chat.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Health / App",
+      "description": "Root application and health check endpoints"
+    },
+    {
+      "name": "User",
+      "description": "User registration, authentication, profiles, and settings"
+    },
+    {
+      "name": "Agent",
+      "description": "Agent onboarding, KYC verification, profile, and analytics"
+    },
+    {
+      "name": "Admin",
+      "description": "Admin authentication, users, moderation, approvals, roles, and financials"
+    },
+    {
+      "name": "Order",
+      "description": "Order management, Paystack checkout, payments, and tracking"
+    },
+    {
+      "name": "Marketplace Product",
+      "description": "Listing, searching, and managing marketplace architecture and design products"
+    },
+    {
+      "name": "Custom Design",
+      "description": "6-step custom architectural design wizard, pricing, and project submissions"
+    },
+    {
+      "name": "Custom Design Workspace",
+      "description": "Custom design project workspace, milestones, files, and activity logs"
+    },
+    {
+      "name": "Wallet",
+      "description": "Wallet balances, bank accounts, withdrawals, and transactions"
+    },
+    {
+      "name": "Notification",
+      "description": "User and agent in-app notification center"
+    },
+    {
+      "name": "Chat",
+      "description": "Direct messaging, custom design conversations, and attachments"
+    },
+    {
+      "name": "Contact",
+      "description": "Contact inquiries and customer support messages"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-auth": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "JWT",
+        "description": "Enter your Bearer token in format: Bearer <token>",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "SignupAddressDto": {
+        "type": "object",
+        "properties": {
+          "street": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "zipcode": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "county": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "userType": {
+            "type": "string",
+            "enum": [
+              "Customer"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
+          },
+          "profilePics": {
+            "type": "string"
+          },
+          "address": {
+            "$ref": "#/components/schemas/SignupAddressDto"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "password"
+        ]
+      },
+      "LoginRequestDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "VerifyLoginTokenDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "verificationToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "verificationToken"
+        ]
+      },
+      "UpdateNotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "messagesAdmin": {
+            "type": "boolean"
+          },
+          "messagesAgent": {
+            "type": "boolean"
+          },
+          "projectFileUploaded": {
+            "type": "boolean"
+          },
+          "projectStatusChanged": {
+            "type": "boolean"
+          },
+          "projectRevisionUpdates": {
+            "type": "boolean"
+          },
+          "paymentSuccessful": {
+            "type": "boolean"
+          },
+          "paymentOrderConfirmation": {
+            "type": "boolean"
+          },
+          "paymentPending": {
+            "type": "boolean"
+          },
+          "paymentFailed": {
+            "type": "boolean"
+          },
+          "paymentReversed": {
+            "type": "boolean"
+          },
+          "reviewReminder": {
+            "type": "boolean"
+          },
+          "reviewResponse": {
+            "type": "boolean"
+          },
+          "emailNotifications": {
+            "type": "boolean"
+          },
+          "smsNotifications": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateAgentBioDto": {
+        "type": "object",
+        "properties": {
+          "bio": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "bio"
+        ]
+      },
+      "UpdateAgentDto": {
+        "type": "object",
+        "properties": {
+          "businessName": {
+            "type": "string"
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 70
+          },
+          "preferredTitle": {
+            "type": "string"
+          },
+          "specialization": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "portfolioLink": {
+            "type": "string"
+          },
+          "profilePicture": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "idType": {
+            "type": "string"
+          },
+          "idNumber": {
+            "type": "string"
+          },
+          "idDocument": {
+            "type": "string"
+          },
+          "architectCert": {
+            "type": "string"
+          },
+          "bankName": {
+            "type": "string"
+          },
+          "accountNumber": {
+            "type": "string"
+          },
+          "accountHolderName": {
+            "type": "string"
+          },
+          "rejectionReason": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateAgentDto": {
+        "type": "object",
+        "properties": {
+          "businessName": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "profilePics": {
+            "type": "string"
+          }
+        }
+      },
+      "MakeAdminDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "AdminLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "VerifyAdminLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "token"
+        ]
+      },
+      "Object": {
+        "type": "object",
+        "properties": {}
+      },
+      "AdminEscalateConversationDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "AdminSendMessageDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "ResolveDisputeDto": {
+        "type": "object",
+        "properties": {
+          "resolution": {
+            "type": "string"
+          },
+          "refundTo": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "customer"
+            ]
+          }
+        },
+        "required": [
+          "resolution"
+        ]
+      },
+      "AdminMarketActionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminRequestChangeDto": {
+        "type": "object",
+        "properties": {
+          "feedback": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback"
+        ]
+      },
+      "AssignAgentDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agentId"
+        ]
+      },
+      "AdminProjectActionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "department"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "string"
+          }
+        }
+      },
+      "AssignRoleDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleId"
+        ]
+      },
+      "UpdateAdminProfileDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "profilePics": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangeAdminPasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 6
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "RegisterBankAccountDto": {
+        "type": "object",
+        "properties": {
+          "accountHolderName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 255
+          },
+          "accountNumber": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 10,
+            "pattern": "^\\d+$"
+          },
+          "bankCode": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10
+          },
+          "bankName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "accountHolderName",
+          "accountNumber",
+          "bankCode",
+          "bankName"
+        ]
+      },
+      "VerifyBankAccountDto": {
+        "type": "object",
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 10
+          },
+          "bankCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountNumber",
+          "bankCode"
+        ]
+      },
+      "WithdrawDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 100
+          },
+          "description": {
+            "type": "string"
+          },
+          "accountDetails": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "accountDetails"
+        ]
+      },
+      "UpdateMarketproductDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "Building Plan",
+              "Interior Design",
+              "Landscape Design"
+            ],
+            "type": "string"
+          },
+          "planType": {
+            "enum": [
+              "Residential",
+              "Commercial",
+              "Industrial"
+            ],
+            "type": "string"
+          },
+          "numBedrooms": {
+            "type": "string"
+          },
+          "numBathrooms": {
+            "type": "string"
+          },
+          "numFloors": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fileType": {
+            "enum": [
+              "PDF only",
+              "CAD + PDF",
+              "3D Model + CAD + PDF"
+            ],
+            "type": "string"
+          },
+          "drawingSet": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "addOns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "productImage": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "architecturalPlan": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "structuralPlan": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "electricalPlan": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mechanicalPlan": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "architecturalPlanFileType": {
+            "type": "string"
+          },
+          "structuralPlanFileType": {
+            "type": "string"
+          },
+          "electricalPlanFileType": {
+            "type": "string"
+          },
+          "mechanicalPlanFileType": {
+            "type": "string"
+          }
+        }
+      },
+      "RateProductDto": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "OrderItemDTO": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "totalQuantity": {
+            "type": "number"
+          },
+          "totalPrice": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "productId",
+          "totalQuantity",
+          "totalPrice"
+        ]
+      },
+      "BillingInfoDTO": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "redirect_url": {
+            "type": "string"
+          },
+          "projectDsc": {
+            "type": "string"
+          },
+          "orderItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDTO"
+            }
+          },
+          "amountPaid": {
+            "type": "number"
+          },
+          "email": {
+            "type": "string"
+          },
+          "billingInfo": {
+            "$ref": "#/components/schemas/BillingInfoDTO"
+          }
+        },
+        "required": [
+          "redirect_url",
+          "projectDsc",
+          "orderItems",
+          "billingInfo"
+        ]
+      },
+      "UpdateOrderDto": {
+        "type": "object",
+        "properties": {
+          "redirect_url": {
+            "type": "string"
+          },
+          "projectDsc": {
+            "type": "string"
+          },
+          "orderItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDTO"
+            }
+          },
+          "amountPaid": {
+            "type": "number"
+          },
+          "email": {
+            "type": "string"
+          },
+          "billingInfo": {
+            "$ref": "#/components/schemas/BillingInfoDTO"
+          }
+        }
+      },
+      "AddCommentDto": {
+        "type": "object",
+        "properties": {
+          "commentText": {
+            "type": "string"
+          },
+          "fileUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentText",
+          "fileUrl"
+        ]
+      },
+      "InitializeCustomDesignDto": {
+        "type": "object",
+        "properties": {
+          "serviceType": {
+            "type": "string",
+            "enum": [
+              "landscape-design",
+              "interior-design",
+              "product-design",
+              "3d-rendering",
+              "2d-architectural",
+              "building-information-modeling",
+              "mep-drawings",
+              "structural-engineering"
+            ]
+          },
+          "serviceContext": {
+            "type": "string"
+          },
+          "selectionMethod": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "template",
+              "ai-advice",
+              "contest",
+              "hire_pro",
+              "fixed_quote"
+            ]
+          }
+        },
+        "required": [
+          "serviceType",
+          "serviceContext"
+        ]
+      },
+      "SubmitCustomDesignDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serviceType": {
+            "type": "string",
+            "enum": [
+              "landscape-design",
+              "interior-design",
+              "product-design",
+              "3d-rendering",
+              "2d-architectural",
+              "building-information-modeling",
+              "mep-drawings",
+              "structural-engineering"
+            ]
+          },
+          "serviceContext": {
+            "type": "string"
+          },
+          "projectType": {
+            "type": "string"
+          },
+          "scopeDeliverables": {
+            "description": "Contains base package title AND any addon titles",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sizeComplexity": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "budget": {
+            "type": "number",
+            "minimum": 0
+          },
+          "timeline": {
+            "type": "string"
+          },
+          "additionalInformation": {
+            "type": "string"
+          },
+          "attachedFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "selectionMethod": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "template",
+              "ai-advice",
+              "contest",
+              "hire_pro",
+              "fixed_quote"
+            ]
+          }
+        },
+        "required": [
+          "serviceType",
+          "serviceContext"
+        ]
+      },
+      "SaveStepDto": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "step",
+          "data"
+        ]
+      },
+      "UpdateCustomDesignDto": {
+        "type": "object",
+        "properties": {
+          "serviceType": {
+            "type": "string",
+            "enum": [
+              "landscape-design",
+              "interior-design",
+              "product-design",
+              "3d-rendering",
+              "2d-architectural",
+              "building-information-modeling",
+              "mep-drawings",
+              "structural-engineering"
+            ]
+          },
+          "serviceContext": {
+            "type": "string"
+          },
+          "projectType": {
+            "type": "string"
+          },
+          "scopeDeliverables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sizeComplexity": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "budget": {
+            "type": "number",
+            "minimum": 0
+          },
+          "timeline": {
+            "type": "string"
+          },
+          "additionalInformation": {
+            "type": "string"
+          },
+          "attachedFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReviewCustomDesignDto": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "SetAgreedPriceDto": {
+        "type": "object",
+        "properties": {
+          "price": {
+            "type": "number",
+            "minimum": 1000
+          }
+        },
+        "required": [
+          "price"
+        ]
+      }
+    }
+  }
+}

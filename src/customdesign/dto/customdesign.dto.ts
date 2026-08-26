@@ -18,7 +18,11 @@ import {
   IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ServiceType, SelectionMethod, CustomDesignStatus } from '../customdesign.types';
+import {
+  ServiceType,
+  SelectionMethod,
+  CustomDesignStatus,
+} from '../customdesign.types';
 
 // ---------------------------------------------------------------------------
 // Wizard: Initialize (Step 1 only)

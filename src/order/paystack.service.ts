@@ -11,8 +11,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 export class PaystackService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    private readonly configService: ConfigService
-  ) { }
+    private readonly configService: ConfigService,
+  ) {}
 
   async initializePayment(
     userId: string | null,
@@ -25,7 +25,9 @@ export class PaystackService {
 
       // Handle logged-in user
       if (userId) {
-        const user = await this.userRepository.findOne({ where: { id: userId } });
+        const user = await this.userRepository.findOne({
+          where: { id: userId },
+        });
         if (!user) {
           throw new BadRequestException('User not found');
         }
@@ -96,7 +98,8 @@ export class PaystackService {
       throw new Error('ConfigService is not initialized');
     }
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) throw new BadRequestException(`User with ID ${userId} not found`);
+    if (!user)
+      throw new BadRequestException(`User with ID ${userId} not found`);
     const response = await axios.post(
       PAYSTACK_TRANSACTION_INI_URL,
       {

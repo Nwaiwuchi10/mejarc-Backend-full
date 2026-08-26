@@ -10,9 +10,16 @@ import { UserNotificationSetting } from './entities/user-notification-setting.en
 import { Agent } from '../agent/entities/agent.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, UserAddress, UserNotificationSetting, Agent])],
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      UserAddress,
+      UserNotificationSetting,
+      Agent,
+    ]),
+  ],
   controllers: [UserController],
   providers: [UserService, MailService, UserAuthGuard],
   exports: [MailService, UserAuthGuard, UserService],
 })
-export class UserModule { }
+export class UserModule {}

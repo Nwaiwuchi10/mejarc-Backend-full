@@ -11,7 +11,7 @@ import { Request } from 'express';
 
 @Injectable()
 export class UserAuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) { }
+  constructor(private jwtService: JwtService) {}
 
   canActivate(
     context: ExecutionContext,

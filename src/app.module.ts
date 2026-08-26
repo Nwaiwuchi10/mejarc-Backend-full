@@ -37,35 +37,54 @@ import config from './config/config';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
-        ssl: {
-          rejectUnauthorized: false,
-        },
-        extra: {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        },
-        autoLoadEntities: true,
-        synchronize: true, // ⚠️ Changed to true to create missing tables
-      }),
-      // useFactory: (configService: ConfigService) => ({
-      //   type: 'postgres',
-      //   host: configService.get('DB_HOST'),
-      //   port: +configService.get('DB_PORT'),
-      //   username: configService.get('DB_USERNAME'),
-      //   password: configService.get('DB_PASSWORD'),
-      //   database: configService.get('DB_NAME'),
-      //   ssl:
-      //     configService.get('DB_SSL') === 'true'
-      //       ? { rejectUnauthorized: false }
-      //       : undefined,
-      //   entities: [join(process.cwd(), 'dist/**/*.entity.js')],
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const dbHost = configService.get<string>('DB_HOST');
+        const dbPort = Number(configService.get<number>('DB_PORT') || 5432);
+        const dbUsername = configService.get<string>('DB_USERNAME');
+        const dbPassword =
+          configService.get<string>('DB_PASSWORD') ||
+          configService.get<string>('DB_PAASWORD');
+        const dbName = configService.get<string>('DB_NAME');
+        const dbSsl = configService.get<string>('DB_SSL');
 
-      //   synchronize: true,
-      // }),
+        const isRemote =
+          dbSsl === 'true' ||
+          (dbHost && dbHost !== 'localhost' && dbHost !== '127.0.0.1') ||
+          Boolean(databaseUrl);
+
+        const sslConfig = isRemote ? { rejectUnauthorized: false } : undefined;
+
+        if (databaseUrl) {
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            ssl: sslConfig,
+            extra: {
+              ssl: sslConfig,
+            },
+            autoLoadEntities: true,
+            entities: [join(__dirname, '**/*.entity{.ts,.js}')],
+            synchronize: true,
+          };
+        }
+
+        return {
+          type: 'postgres',
+          host: dbHost || 'localhost',
+          port: dbPort,
+          username: dbUsername || 'postgres',
+          password: dbPassword || '',
+          database: dbName || 'mejarc',
+          ssl: sslConfig,
+          extra: {
+            ssl: sslConfig,
+          },
+          autoLoadEntities: true,
+          entities: [join(__dirname, '**/*.entity{.ts,.js}')],
+          synchronize: true,
+        };
+      },
     }),
     UserModule,
     AgentModule,
@@ -81,4 +100,4 @@ import config from './config/config';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

@@ -14,12 +14,12 @@ const hasS3Credentials = !!(
 
 export const s3Client = hasS3Credentials
   ? new S3Client({
-    region: process.env.AWS_REGION as string,
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
-    },
-  })
+      region: process.env.AWS_REGION as string,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+      },
+    })
   : null;
 
 export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || '';
@@ -27,9 +27,13 @@ export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || '';
 // Force AWS SDK to sync its internal clock offset by making a quick, lightweight request.
 // Even if it fails (due to clock skew or auth), the SDK extracts the server time and adjusts.
 if (s3Client && AWS_S3_BUCKET_NAME) {
-  s3Client.send(new HeadBucketCommand({ Bucket: AWS_S3_BUCKET_NAME }))
+  s3Client
+    .send(new HeadBucketCommand({ Bucket: AWS_S3_BUCKET_NAME }))
     .catch((err) => {
-      console.log('S3 clock synchronization check finished (error expected/ignored):', err.name || err.message);
+      console.log(
+        'S3 clock synchronization check finished (error expected/ignored):',
+        err.name || err.message,
+      );
     });
 }
 

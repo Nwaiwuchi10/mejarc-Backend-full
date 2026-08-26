@@ -68,7 +68,10 @@ export class ContactService {
 
       await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
-      this.logger.error('Failed to send contact email notification to admin', err);
+      this.logger.error(
+        'Failed to send contact email notification to admin',
+        err,
+      );
     }
 
     return saved;

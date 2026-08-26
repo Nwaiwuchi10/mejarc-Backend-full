@@ -134,7 +134,10 @@ export class WalletService {
         description: 'Vendor payment and withdrawal mode configuration',
       });
       await this.settingRepository.save(setting);
-    } else if (setting.value && setting.value.maxWithdrawalAmount === undefined) {
+    } else if (
+      setting.value &&
+      setting.value.maxWithdrawalAmount === undefined
+    ) {
       setting.value.maxWithdrawalAmount = 5000000;
       await this.settingRepository.save(setting);
     }
@@ -176,7 +179,7 @@ export class WalletService {
       maxWithdrawalAmount:
         dto.maxWithdrawalAmount !== undefined
           ? Number(dto.maxWithdrawalAmount)
-          : (current.maxWithdrawalAmount || 5000000),
+          : current.maxWithdrawalAmount || 5000000,
       updatedAt: new Date().toISOString(),
     };
 
@@ -222,8 +225,9 @@ export class WalletService {
     }
 
     // 0. Check withdrawal eligibility (has verified bank account)
-    const verifiedAccount =
-      await this.bankAccountService.getDefaultBankAccount(agent.id);
+    const verifiedAccount = await this.bankAccountService.getDefaultBankAccount(
+      agent.id,
+    );
     if (!verifiedAccount) {
       throw new BadRequestException(
         'You must have a verified bank account to request a withdrawal.',
@@ -337,8 +341,8 @@ export class WalletService {
         message: shouldAutoApprove
           ? 'Withdrawal processed successfully via Auto-Payout'
           : isAutoMode
-          ? 'Withdrawal request submitted successfully for approval'
-          : 'Withdrawal request submitted for Admin review and manual processing',
+            ? 'Withdrawal request submitted successfully for approval'
+            : 'Withdrawal request submitted for Admin review and manual processing',
         mode: settings.mode,
         balance: agent.wallet.balance,
         withdrawalRequest: savedRequest,
@@ -365,7 +369,8 @@ export class WalletService {
     if (request.autoProcess) {
       // Auto Mode: Admin approved above-threshold request to trigger Paystack queue
       request.status = WithdrawalStatus.APPROVED;
-      request.adminNotes = adminNotes || 'Approved by Admin for automated processing';
+      request.adminNotes =
+        adminNotes || 'Approved by Admin for automated processing';
       await this.withdrawalRepository.save(request);
 
       this.withdrawalQueueService

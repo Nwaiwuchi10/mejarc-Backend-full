@@ -23,4 +23,4 @@ import { NotificationModule } from '../notification/notification.module';
   providers: [MarketproductService, MarketProductMailService],
   exports: [MarketproductService, MarketProductMailService],
 })
-export class MarketproductModule { }
+export class MarketproductModule {}

@@ -21,7 +21,6 @@ import { ProjectFile } from './entities/project-file.entity';
 import { CustomDesignWorkspaceController } from './customdesign-workspace.controller';
 import { CustomDesignWorkspaceService } from './customdesign-workspace.service';
 
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -42,4 +41,4 @@ import { CustomDesignWorkspaceService } from './customdesign-workspace.service';
   providers: [CustomDesignService, CustomDesignWorkspaceService],
   exports: [CustomDesignService, CustomDesignWorkspaceService],
 })
-export class CustomDesignModule { }
+export class CustomDesignModule {}

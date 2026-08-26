@@ -86,7 +86,10 @@ export class User {
   @JoinColumn()
   address?: UserAddress;
 
-  @OneToOne(() => UserNotificationSetting, (s) => s.user, { cascade: true, eager: true })
+  @OneToOne(() => UserNotificationSetting, (s) => s.user, {
+    cascade: true,
+    eager: true,
+  })
   notificationSettings?: UserNotificationSetting;
 
   //   @ManyToOne(() => PricingPlan, { nullable: true })

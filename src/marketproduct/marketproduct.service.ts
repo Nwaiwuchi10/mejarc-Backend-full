@@ -7,7 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between, In } from 'typeorm';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
-import { MarketProduct, MarketProductStatus } from './entities/marketproduct.entity';
+import {
+  MarketProduct,
+  MarketProductStatus,
+} from './entities/marketproduct.entity';
 import { Rating } from './entities/rating.entity';
 import { Agent, AgentRegistrationStatus } from '../agent/entities/agent.entity';
 import { RateProductDto } from './dto/rate-product.dto';
@@ -27,7 +30,7 @@ export class MarketproductService {
     private readonly ratingRepo: Repository<Rating>,
     private readonly mailService: MarketProductMailService,
     private readonly notificationService: NotificationService,
-  ) { }
+  ) {}
 
   async create(
     agentId: string,
@@ -58,10 +61,14 @@ export class MarketproductService {
 
     // 2. Map S3 URLs from uploaded files
     const productImage = files?.productImage?.map((f: any) => f.location) || [];
-    const architecturalPlan = files?.architecturalPlan?.map((f: any) => f.location) || [];
-    const structuralPlan = files?.structuralPlan?.map((f: any) => f.location) || [];
-    const electricalPlan = files?.electricalPlan?.map((f: any) => f.location) || [];
-    const mechanicalPlan = files?.mechanicalPlan?.map((f: any) => f.location) || [];
+    const architecturalPlan =
+      files?.architecturalPlan?.map((f: any) => f.location) || [];
+    const structuralPlan =
+      files?.structuralPlan?.map((f: any) => f.location) || [];
+    const electricalPlan =
+      files?.electricalPlan?.map((f: any) => f.location) || [];
+    const mechanicalPlan =
+      files?.mechanicalPlan?.map((f: any) => f.location) || [];
 
     // 3. Create Product entity
     const product = this.productRepo.create({
@@ -89,7 +96,22 @@ export class MarketproductService {
   }
 
   async findAll(filterDto: MarketProductFilterDto) {
-    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice, status } = filterDto;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      planType,
+      category,
+      buildingGuides,
+      numBedrooms,
+      numBathrooms,
+      numFloors,
+      area,
+      designStyle,
+      minPrice,
+      maxPrice,
+      status,
+    } = filterDto;
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
@@ -155,7 +177,22 @@ export class MarketproductService {
   }
 
   async findAllByAgent(agentId: string, filterDto: MarketProductFilterDto) {
-    const { page = 1, limit = 10, search, planType, category, buildingGuides, numBedrooms, numBathrooms, numFloors, area, designStyle, minPrice, maxPrice, status } = filterDto;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      planType,
+      category,
+      buildingGuides,
+      numBedrooms,
+      numBathrooms,
+      numFloors,
+      area,
+      designStyle,
+      minPrice,
+      maxPrice,
+      status,
+    } = filterDto;
     const skip = (page - 1) * limit;
 
     const queryOptions: any = {
@@ -242,7 +279,9 @@ export class MarketproductService {
     const parseFieldUrls = (dtoField: any): string[] => {
       if (Array.isArray(dtoField)) return dtoField;
       if (typeof dtoField === 'string' && dtoField.trim().length > 0) {
-        return dtoField.includes(',') ? dtoField.split(',').map((s: string) => s.trim()) : [dtoField.trim()];
+        return dtoField.includes(',')
+          ? dtoField.split(',').map((s: string) => s.trim())
+          : [dtoField.trim()];
       }
       return [];
     };
@@ -250,41 +289,63 @@ export class MarketproductService {
     // 2. Map & merge S3 URLs
     const newImages = files?.productImage?.map((f: any) => f.location) || [];
     const existingImages = parseFieldUrls(updateMarketproductDto.productImage);
-    if (newImages.length > 0 || updateMarketproductDto.productImage !== undefined) {
+    if (
+      newImages.length > 0 ||
+      updateMarketproductDto.productImage !== undefined
+    ) {
       product.productImage = [...existingImages, ...newImages];
     }
 
     const newArch = files?.architecturalPlan?.map((f: any) => f.location) || [];
-    const existingArch = parseFieldUrls(updateMarketproductDto.architecturalPlan);
-    if (newArch.length > 0 || updateMarketproductDto.architecturalPlan !== undefined) {
+    const existingArch = parseFieldUrls(
+      updateMarketproductDto.architecturalPlan,
+    );
+    if (
+      newArch.length > 0 ||
+      updateMarketproductDto.architecturalPlan !== undefined
+    ) {
       product.architecturalPlan = [...existingArch, ...newArch];
     }
 
     const newStruct = files?.structuralPlan?.map((f: any) => f.location) || [];
-    const existingStruct = parseFieldUrls(updateMarketproductDto.structuralPlan);
-    if (newStruct.length > 0 || updateMarketproductDto.structuralPlan !== undefined) {
+    const existingStruct = parseFieldUrls(
+      updateMarketproductDto.structuralPlan,
+    );
+    if (
+      newStruct.length > 0 ||
+      updateMarketproductDto.structuralPlan !== undefined
+    ) {
       product.structuralPlan = [...existingStruct, ...newStruct];
     }
 
     const newElect = files?.electricalPlan?.map((f: any) => f.location) || [];
     const existingElect = parseFieldUrls(updateMarketproductDto.electricalPlan);
-    if (newElect.length > 0 || updateMarketproductDto.electricalPlan !== undefined) {
+    if (
+      newElect.length > 0 ||
+      updateMarketproductDto.electricalPlan !== undefined
+    ) {
       product.electricalPlan = [...existingElect, ...newElect];
     }
 
     const newMech = files?.mechanicalPlan?.map((f: any) => f.location) || [];
     const existingMech = parseFieldUrls(updateMarketproductDto.mechanicalPlan);
-    if (newMech.length > 0 || updateMarketproductDto.mechanicalPlan !== undefined) {
+    if (
+      newMech.length > 0 ||
+      updateMarketproductDto.mechanicalPlan !== undefined
+    ) {
       product.mechanicalPlan = [...existingMech, ...newMech];
     }
 
     const updatedProduct = await this.productRepo.save(product);
 
     // 3. Notify agent if approved
-    if (oldStatus !== MarketProductStatus.APPROVED && updatedProduct.status === MarketProductStatus.APPROVED) {
+    if (
+      oldStatus !== MarketProductStatus.APPROVED &&
+      updatedProduct.status === MarketProductStatus.APPROVED
+    ) {
       const agent = await this.agentRepo.findOne({
         where: { id: updatedProduct.agentId },
-        relations: ['user']
+        relations: ['user'],
       });
       if (agent && agent.user) {
         await this.notificationService.createNotification(

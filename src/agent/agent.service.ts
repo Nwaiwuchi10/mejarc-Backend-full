@@ -56,7 +56,7 @@ export class AgentService {
     private readonly kycProvider: UverifyKycProvider,
     private readonly mailService: AgentMailService,
     private readonly notificationService: NotificationService,
-  ) { }
+  ) {}
 
   /**
    * Initialize agent registration - Creates agent record after user signup
@@ -98,7 +98,7 @@ export class AgentService {
       .where('"agentId" IS NULL')
       .execute();
 
-    let agent = await this.agentRepo.findOne({
+    const agent = await this.agentRepo.findOne({
       where: { userId },
       relations: ['user'],
     });
@@ -571,17 +571,25 @@ export class AgentService {
     return this.agentRepo.save(agent);
   }
 
-  async findAllPros(paginationDto: PaginationDto): Promise<{ data: ProOverviewDto[], meta: any }> {
+  async findAllPros(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: ProOverviewDto[]; meta: any }> {
     const { page = 1, limit = 10, search } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const query = this.agentRepo.createQueryBuilder('agent')
+    const query = this.agentRepo
+      .createQueryBuilder('agent')
       .leftJoinAndSelect('agent.profile', 'profile')
       .leftJoinAndSelect('agent.user', 'user')
-      .where('agent.registrationStatus = :status', { status: AgentRegistrationStatus.APPROVED });
+      .where('agent.registrationStatus = :status', {
+        status: AgentRegistrationStatus.APPROVED,
+      });
 
     if (search) {
-      query.andWhere('(agent.businessName ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)', { search: `%${search}%` });
+      query.andWhere(
+        '(agent.businessName ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
     const [agents, total] = await query
@@ -624,10 +632,22 @@ export class AgentService {
 
     if (search) {
       queryOptions.where = [
-        { registrationStatus: AgentRegistrationStatus.APPROVED, businessName: Like(`%${search}%`) },
-        { registrationStatus: AgentRegistrationStatus.APPROVED, user: { firstName: Like(`%${search}%`) } },
-        { registrationStatus: AgentRegistrationStatus.APPROVED, user: { lastName: Like(`%${search}%`) } },
-        { registrationStatus: AgentRegistrationStatus.APPROVED, user: { email: Like(`%${search}%`) } },
+        {
+          registrationStatus: AgentRegistrationStatus.APPROVED,
+          businessName: Like(`%${search}%`),
+        },
+        {
+          registrationStatus: AgentRegistrationStatus.APPROVED,
+          user: { firstName: Like(`%${search}%`) },
+        },
+        {
+          registrationStatus: AgentRegistrationStatus.APPROVED,
+          user: { lastName: Like(`%${search}%`) },
+        },
+        {
+          registrationStatus: AgentRegistrationStatus.APPROVED,
+          user: { email: Like(`%${search}%`) },
+        },
       ];
     }
 

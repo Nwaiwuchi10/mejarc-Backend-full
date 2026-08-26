@@ -12,7 +12,11 @@ import { ProjectActivity } from './entities/project-activity.entity';
 import { ProjectFile } from './entities/project-file.entity';
 import { Agent } from '../agent/entities/agent.entity';
 import { Admin } from '../admin/entities/admin.entity';
-import { CustomDesignStatus, MilestoneStatus, ActivityType } from './customdesign.types';
+import {
+  CustomDesignStatus,
+  MilestoneStatus,
+  ActivityType,
+} from './customdesign.types';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/entities/notification.entity';
 
@@ -41,9 +45,18 @@ export class CustomDesignWorkspaceService {
     const design = await this.validateAccessAndGetDesign(userId, designId);
 
     const [milestones, files, activities] = await Promise.all([
-      this.milestoneRepo.find({ where: { customDesignId: designId }, order: { dueDate: 'ASC' } }),
-      this.fileRepo.find({ where: { customDesignId: designId }, order: { createdAt: 'DESC' } }),
-      this.activityRepo.find({ where: { customDesignId: designId }, order: { createdAt: 'DESC' } }),
+      this.milestoneRepo.find({
+        where: { customDesignId: designId },
+        order: { dueDate: 'ASC' },
+      }),
+      this.fileRepo.find({
+        where: { customDesignId: designId },
+        order: { createdAt: 'DESC' },
+      }),
+      this.activityRepo.find({
+        where: { customDesignId: designId },
+        order: { createdAt: 'DESC' },
+      }),
     ]);
 
     return {
@@ -58,7 +71,11 @@ export class CustomDesignWorkspaceService {
    * Adds a new milestone to the project.
    */
   async addMilestone(userId: string, designId: string, data: any) {
-    const design = await this.validateAccessAndGetDesign(userId, designId, true);
+    const design = await this.validateAccessAndGetDesign(
+      userId,
+      designId,
+      true,
+    );
 
     const milestone = this.milestoneRepo.create({
       customDesignId: designId,
@@ -86,10 +103,16 @@ export class CustomDesignWorkspaceService {
    * Updates an existing milestone status.
    */
   async updateMilestone(userId: string, milestoneId: string, data: any) {
-    const milestone = await this.milestoneRepo.findOne({ where: { id: milestoneId } });
+    const milestone = await this.milestoneRepo.findOne({
+      where: { id: milestoneId },
+    });
     if (!milestone) throw new NotFoundException('Milestone not found');
 
-    const design = await this.validateAccessAndGetDesign(userId, milestone.customDesignId, true);
+    const design = await this.validateAccessAndGetDesign(
+      userId,
+      milestone.customDesignId,
+      true,
+    );
 
     Object.assign(milestone, data);
     const saved = await this.milestoneRepo.save(milestone);
@@ -98,7 +121,9 @@ export class CustomDesignWorkspaceService {
       await this.logActivity(
         design.id,
         userId,
-        data.status === MilestoneStatus.COMPLETED ? ActivityType.COMPLETED : ActivityType.MILESTONE,
+        data.status === MilestoneStatus.COMPLETED
+          ? ActivityType.COMPLETED
+          : ActivityType.MILESTONE,
         `Milestone "${saved.title}" updated to ${saved.status}`,
       );
     }
@@ -109,7 +134,16 @@ export class CustomDesignWorkspaceService {
   /**
    * Logs a project file (deliverable).
    */
-  async uploadFile(userId: string, designId: string, fileData: { fileName: string; fileUrl: string; fileType?: string; isDeliverable?: boolean }) {
+  async uploadFile(
+    userId: string,
+    designId: string,
+    fileData: {
+      fileName: string;
+      fileUrl: string;
+      fileType?: string;
+      isDeliverable?: boolean;
+    },
+  ) {
     const design = await this.validateAccessAndGetDesign(userId, designId);
 
     const file = this.fileRepo.create({
@@ -138,7 +172,14 @@ export class CustomDesignWorkspaceService {
   /**
    * Internal helper to record activities.
    */
-  async logActivity(designId: string, userId: string, type: ActivityType, title: string, description?: string, metadata?: any) {
+  async logActivity(
+    designId: string,
+    userId: string,
+    type: ActivityType,
+    title: string,
+    description?: string,
+    metadata?: any,
+  ) {
     const activity = this.activityRepo.create({
       customDesignId: designId,
       userId,
@@ -157,7 +198,11 @@ export class CustomDesignWorkspaceService {
    * 2. Assigned Agent - Has access IF the project is APPROVED/ACCEPTED by them.
    * 3. Admin - Always has access to oversee.
    */
-  async validateAccessAndGetDesign(userId: string, designId: string, requiresWrite: boolean = false): Promise<CustomDesign> {
+  async validateAccessAndGetDesign(
+    userId: string,
+    designId: string,
+    requiresWrite: boolean = false,
+  ): Promise<CustomDesign> {
     const design = await this.designRepo.findOne({
       where: { id: designId },
       relations: ['user', 'agent', 'agent.user'],
@@ -171,7 +216,10 @@ export class CustomDesignWorkspaceService {
 
     // 2. Client Access
     if (design.userId === userId) {
-      if (requiresWrite) throw new ForbiddenException('Only agents or admins can modify project progress');
+      if (requiresWrite)
+        throw new ForbiddenException(
+          'Only agents or admins can modify project progress',
+        );
       return design;
     }
 
@@ -185,11 +233,15 @@ export class CustomDesignWorkspaceService {
         CustomDesignStatus.REVISION,
       ];
       if (!allowedStatuses.includes(design.status)) {
-        throw new ForbiddenException('Access denied. You must accept the project first.');
+        throw new ForbiddenException(
+          'Access denied. You must accept the project first.',
+        );
       }
       return design;
     }
 
-    throw new ForbiddenException('You do not have permission to access this workspace');
+    throw new ForbiddenException(
+      'You do not have permission to access this workspace',
+    );
   }
 }
