@@ -34,14 +34,19 @@ export class MailService {
   ) {
     let itemsHtml = '';
     if (orderItems && orderItems.length > 0) {
-      itemsHtml = `
+      itemsHtml =
+        `
         <div style="margin-top: 15px; padding: 10px; background-color: #f1f1f1; border-radius: 8px;">
           <h4 style="margin: 0 0 10px; color: #333;">Purchased Plan details:</h4>
           <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #555;">
-      ` + orderItems.map((item: any) => {
-        const title = item.title || item.product?.title || 'Building Plan';
-        return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
-      }).join('') + `
+      ` +
+        orderItems
+          .map((item: any) => {
+            const title = item.title || item.product?.title || 'Building Plan';
+            return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
+          })
+          .join('') +
+        `
           </ul>
         </div>
       `;
@@ -94,7 +99,10 @@ export class MailService {
     try {
       await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
-      console.error(`Failed to send order confirmation to ${email}`, err.message);
+      console.error(
+        `Failed to send order confirmation to ${email}`,
+        err.message,
+      );
     }
   }
 
@@ -109,14 +117,19 @@ export class MailService {
   ) {
     let itemsHtml = '';
     if (orderItems && orderItems.length > 0) {
-      itemsHtml = `
+      itemsHtml =
+        `
         <div style="margin-top: 15px; padding: 10px; background-color: #f1f1f1; border-radius: 8px;">
           <h4 style="margin: 0 0 10px; color: #333;">Purchased Plan details:</h4>
           <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #555;">
-      ` + orderItems.map((item: any) => {
-        const title = item.product?.title || item.title || 'Building Plan';
-        return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
-      }).join('') + `
+      ` +
+        orderItems
+          .map((item: any) => {
+            const title = item.product?.title || item.title || 'Building Plan';
+            return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
+          })
+          .join('') +
+        `
           </ul>
         </div>
       `;
@@ -161,7 +174,10 @@ export class MailService {
       await this.brevoClient.sendTransacEmail(mailOptions);
       console.log(`✅ Email sent: Payment Verified to ${email}`);
     } catch (err) {
-      console.error(`Failed to send Payment Verified to ${email}:`, err.message);
+      console.error(
+        `Failed to send Payment Verified to ${email}:`,
+        err.message,
+      );
     }
   }
 
@@ -363,7 +379,12 @@ export class MailService {
     }
   }
 
-  async sendProductDeliveryMail(email: string, firstName: string, orderItems: any[], order?: any) {
+  async sendProductDeliveryMail(
+    email: string,
+    firstName: string,
+    orderItems: any[],
+    order?: any,
+  ) {
     let productsHtml = '';
 
     if (orderItems && orderItems.length > 0) {
@@ -377,12 +398,19 @@ export class MailService {
             let links: string[] = [];
             if (Array.isArray(planField)) {
               links = planField;
-            } else if (typeof planField === 'string' && planField.trim().length > 0) {
-              links = planField.includes(',') ? planField.split(',').map((s) => s.trim()) : [planField.trim()];
+            } else if (
+              typeof planField === 'string' &&
+              planField.trim().length > 0
+            ) {
+              links = planField.includes(',')
+                ? planField.split(',').map((s) => s.trim())
+                : [planField.trim()];
             }
 
             links.filter(Boolean).forEach((link, i) => {
-              const rawFileName = decodeURIComponent(link.split('/').pop()?.split('?')[0] || `File-${i + 1}`);
+              const rawFileName = decodeURIComponent(
+                link.split('/').pop()?.split('?')[0] || `File-${i + 1}`,
+              );
               const ext = rawFileName.split('.').pop()?.toUpperCase() || '';
               const typeBadge = ext ? ` [${ext}]` : '';
               html += `<li style="margin-bottom: 10px; list-style: none;">
@@ -401,13 +429,26 @@ export class MailService {
             return html;
           };
 
-          filesHtml += formatFiles(item?.product?.architecturalPlan, 'Architectural Plan');
-          filesHtml += formatFiles(item?.product?.structuralPlan, 'Structural Plan');
-          filesHtml += formatFiles(item?.product?.electricalPlan, 'Electrical Plan');
-          filesHtml += formatFiles(item?.product?.mechanicalPlan, 'Mechanical Plan');
+          filesHtml += formatFiles(
+            item?.product?.architecturalPlan,
+            'Architectural Plan',
+          );
+          filesHtml += formatFiles(
+            item?.product?.structuralPlan,
+            'Structural Plan',
+          );
+          filesHtml += formatFiles(
+            item?.product?.electricalPlan,
+            'Electrical Plan',
+          );
+          filesHtml += formatFiles(
+            item?.product?.mechanicalPlan,
+            'Mechanical Plan',
+          );
 
           if (filesHtml === '<ul style="padding-left: 20px;">') {
-            filesHtml += '<li style="list-style: none; color: #888; font-size: 13px;">No files available for download yet. Please contact support.</li>';
+            filesHtml +=
+              '<li style="list-style: none; color: #888; font-size: 13px;">No files available for download yet. Please contact support.</li>';
           }
           filesHtml += '</ul>';
 
@@ -434,14 +475,18 @@ export class MailService {
           </div>
           <p>Hi <strong>${firstName}</strong>,</p>
           <p>Thank you for your purchase! We successfully processed your payment and your product files are ready for download.</p>
-          ${order ? `
+          ${
+            order
+              ? `
           <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #FFC700; font-size: 14px; color: #555;">
             <p style="margin: 0 0 5px;"><strong>Order ID:</strong> ${order.id}</p>
             <p style="margin: 0 0 5px;"><strong>Payment Reference:</strong> ${order.payStackPayment?.reference || 'N/A'}</p>
-            <p style="margin: 0 0 5px;"><strong>Amount Paid:</strong> ₦${parseFloat(order.grandTotal || "0").toLocaleString()}</p>
+            <p style="margin: 0 0 5px;"><strong>Amount Paid:</strong> ₦${parseFloat(order.grandTotal || '0').toLocaleString()}</p>
             <p style="margin: 0 0 5px;"><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
           <div style="margin: 30px 0;">
              ${productsHtml}
           </div>
@@ -462,7 +507,12 @@ export class MailService {
     }
   }
 
-  async notifyAgentOfProductSale(agentEmail: string, agentName: string, productTitle: string, amountEarned: number) {
+  async notifyAgentOfProductSale(
+    agentEmail: string,
+    agentName: string,
+    productTitle: string,
+    amountEarned: number,
+  ) {
     const mailOptions = {
       sender: { name: 'Mejarc', email: process.env.MAIL_FROM },
       to: [{ email: agentEmail, name: agentName }],
@@ -486,13 +536,16 @@ export class MailService {
               <a href="https://mejarc.com/agent-dashboard" style="background: #4CAF50; color: white; padding: 12px 24px; border-radius: 5px; text-decoration: none; font-size: 16px;">View Dashboard</a>
             </div>
           </div>
-          `
+          `,
     };
 
     try {
       await this.brevoClient.sendTransacEmail(mailOptions);
     } catch (err) {
-      console.error(`Failed to notify agent ${agentEmail} of sale:`, err.message);
+      console.error(
+        `Failed to notify agent ${agentEmail} of sale:`,
+        err.message,
+      );
     }
   }
 }

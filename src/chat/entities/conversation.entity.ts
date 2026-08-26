@@ -10,7 +10,6 @@ import {
 import { ConversationMember } from './conversation-member.entity';
 import { Message } from './message.entity';
 
-
 export enum ConversationType {
   DM = 'dm',
   GROUP = 'group',

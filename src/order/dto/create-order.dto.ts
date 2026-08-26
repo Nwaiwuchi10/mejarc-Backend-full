@@ -78,9 +78,7 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsNumber()
-  amountPaid?: number
-
-
+  amountPaid?: number;
 
   @IsOptional()
   @IsString()

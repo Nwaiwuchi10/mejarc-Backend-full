@@ -31,4 +31,4 @@ import { NotificationModule } from '../notification/notification.module';
   controllers: [OrderController],
   providers: [OrderService, MailService, PaystackService],
 })
-export class OrderModule { }
+export class OrderModule {}

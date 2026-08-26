@@ -23,10 +23,17 @@ import {
   ListCustomDesignsQueryDto,
   CustomDesignResponseDto,
 } from './dto/customdesign.dto';
-import { ServiceType, CustomDesignStatus, SelectionMethod } from './customdesign.types';
+import {
+  ServiceType,
+  CustomDesignStatus,
+  SelectionMethod,
+} from './customdesign.types';
 import { AgentRegistrationStatus } from '../agent/entities/agent.entity';
 import { getServiceConfig } from './config/services.config';
-import { CustomDesignPayment, CustomDesignPaymentStatus } from './entities/custom-design-payment.entity';
+import {
+  CustomDesignPayment,
+  CustomDesignPaymentStatus,
+} from './entities/custom-design-payment.entity';
 import { SetAgreedPriceDto } from './dto/set-agreed-price.dto';
 import { WalletService } from '../wallet/wallet.service';
 import { TransactionCategory } from '../wallet/entities/wallet-transaction.entity';
@@ -38,8 +45,10 @@ import axios from 'axios';
 
 @Injectable()
 export class CustomDesignService {
-  private readonly PAYSTACK_INIT_URL = 'https://api.paystack.co/transaction/initialize';
-  private readonly PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
+  private readonly PAYSTACK_INIT_URL =
+    'https://api.paystack.co/transaction/initialize';
+  private readonly PAYSTACK_VERIFY_URL =
+    'https://api.paystack.co/transaction/verify';
 
   constructor(
     @InjectRepository(CustomDesign)
@@ -51,7 +60,7 @@ export class CustomDesignService {
     private readonly walletService: WalletService,
     private readonly notificationService: NotificationService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   // ---------------------------------------------------------------------------
   // CREATE — Wizard: Step 1 only (initialize a draft)
@@ -63,9 +72,16 @@ export class CustomDesignService {
     agentId?: string,
   ): Promise<CustomDesignResponseDto> {
     if (agentId) {
-      const agent = (await this.repo.manager.findOne('Agent', { where: { id: agentId } })) as any;
-      if (agent && agent.registrationStatus !== AgentRegistrationStatus.APPROVED) {
-        throw new BadRequestException('The selected agent is not currently approved to accept new projects.');
+      const agent = (await this.repo.manager.findOne('Agent', {
+        where: { id: agentId },
+      })) as any;
+      if (
+        agent &&
+        agent.registrationStatus !== AgentRegistrationStatus.APPROVED
+      ) {
+        throw new BadRequestException(
+          'The selected agent is not currently approved to accept new projects.',
+        );
       }
     }
 
@@ -76,7 +92,9 @@ export class CustomDesignService {
       agentId,
       serviceType: dto.serviceType,
       serviceContext: dto.serviceContext,
-      selectionMethod: this.mapMethodToSelectionMethod(dto.selectionMethod as any),
+      selectionMethod: this.mapMethodToSelectionMethod(
+        dto.selectionMethod as any,
+      ),
       currentStep: 1,
       status: CustomDesignStatus.IN_PROGRESS,
       isSubmitted: false,
@@ -123,7 +141,9 @@ export class CustomDesignService {
       timeline: dto.timeline,
       additionalInformation: dto.additionalInformation,
       attachedFiles: combinedFiles,
-      selectionMethod: this.mapMethodToSelectionMethod(dto.selectionMethod as any),
+      selectionMethod: this.mapMethodToSelectionMethod(
+        dto.selectionMethod as any,
+      ),
       currentStep: 6,
       status: CustomDesignStatus.SUBMITTED,
       isSubmitted: true,
@@ -161,7 +181,8 @@ export class CustomDesignService {
         if (data.serviceContext) design.serviceContext = data.serviceContext;
         break;
       case 2:
-        if (data.projectType !== undefined) design.projectType = data.projectType;
+        if (data.projectType !== undefined)
+          design.projectType = data.projectType;
         design.currentStep = Math.max(design.currentStep, 2);
         break;
       case 3:
@@ -170,7 +191,8 @@ export class CustomDesignService {
         design.currentStep = Math.max(design.currentStep, 3);
         break;
       case 4:
-        if (data.sizeComplexity !== undefined) design.sizeComplexity = data.sizeComplexity;
+        if (data.sizeComplexity !== undefined)
+          design.sizeComplexity = data.sizeComplexity;
         design.currentStep = Math.max(design.currentStep, 4);
         break;
       case 5:
@@ -182,11 +204,15 @@ export class CustomDesignService {
         if (data.timeline !== undefined) design.timeline = data.timeline;
         if (data.additionalInformation !== undefined)
           design.additionalInformation = data.additionalInformation;
-        
+
         // Merge uploaded files with any provided URLs in data
         const attachedFromData = data.attachedFiles ?? [];
-        design.attachedFiles = [...(design.attachedFiles ?? []), ...attachedFromData, ...uploadedUrls];
-        
+        design.attachedFiles = [
+          ...(design.attachedFiles ?? []),
+          ...attachedFromData,
+          ...uploadedUrls,
+        ];
+
         design.currentStep = 6;
         break;
       default:
@@ -252,10 +278,14 @@ export class CustomDesignService {
     const design = await this.getOwnedDesign(id, userId);
 
     if (design.status === CustomDesignStatus.SUBMITTED) {
-      throw new BadRequestException('Custom design has already been submitted.');
+      throw new BadRequestException(
+        'Custom design has already been submitted.',
+      );
     }
     if (design.status === CustomDesignStatus.COMPLETED) {
-      throw new BadRequestException('Cannot re-submit a completed custom design.');
+      throw new BadRequestException(
+        'Cannot re-submit a completed custom design.',
+      );
     }
 
     // Allow final-step data to be sent alongside the submit call
@@ -265,7 +295,10 @@ export class CustomDesignService {
       if (dto.additionalInformation !== undefined)
         design.additionalInformation = dto.additionalInformation;
       if (dto.attachedFiles !== undefined) {
-        design.attachedFiles = [...(design.attachedFiles ?? []), ...dto.attachedFiles];
+        design.attachedFiles = [
+          ...(design.attachedFiles ?? []),
+          ...dto.attachedFiles,
+        ];
       }
     }
 
@@ -327,21 +360,36 @@ export class CustomDesignService {
   async findMyDesigns(
     userId: string,
     query: ListCustomDesignsQueryDto,
-  ): Promise<{ data: CustomDesignResponseDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: CustomDesignResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.paginatedQuery({ userId }, query);
   }
 
   async findByAgent(
     agentId: string,
     query: ListCustomDesignsQueryDto,
-  ): Promise<{ data: CustomDesignResponseDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: CustomDesignResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.paginatedQuery({ agentId }, query);
   }
 
   async findByUser(
     userId: string,
     query: ListCustomDesignsQueryDto,
-  ): Promise<{ data: CustomDesignResponseDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: CustomDesignResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     return this.paginatedQuery({ userId }, query);
   }
 
@@ -412,7 +460,8 @@ export class CustomDesignService {
 
     const normalized = method.toLowerCase().replace(/\s/g, '');
     if (normalized === 'ai') return SelectionMethod.AI_ADVICE;
-    if (normalized === 'manual' || normalized === 'hireapro') return SelectionMethod.HIRE_PRO;
+    if (normalized === 'manual' || normalized === 'hireapro')
+      return SelectionMethod.HIRE_PRO;
     if (normalized === 'contest') return SelectionMethod.CONTEST;
     if (normalized === 'fixedquote') return SelectionMethod.FIXED_QUOTE;
     if (normalized === 'template') return SelectionMethod.TEMPLATE;
@@ -447,12 +496,16 @@ export class CustomDesignService {
 
     switch (step) {
       case 1: {
-        const valid = config.contexts.find((c) => c.title === data.serviceContext);
+        const valid = config.contexts.find(
+          (c) => c.title === data.serviceContext,
+        );
         if (!valid) errors.push('Invalid service context selection');
         break;
       }
       case 2: {
-        const valid = config.projectTypes.find((p) => p.title === data.projectType);
+        const valid = config.projectTypes.find(
+          (p) => p.title === data.projectType,
+        );
         if (!valid) errors.push('Invalid project type selection');
         break;
       }
@@ -463,8 +516,11 @@ export class CustomDesignService {
           break;
         }
         // First element should be a base package
-        const baseValid = config.scopes.find((s) => s.title === deliverables[0]);
-        if (!baseValid) errors.push(`Invalid scope package: "${deliverables[0]}"`);
+        const baseValid = config.scopes.find(
+          (s) => s.title === deliverables[0],
+        );
+        if (!baseValid)
+          errors.push(`Invalid scope package: "${deliverables[0]}"`);
         // Remaining elements should be valid addons
         for (const addon of deliverables.slice(1)) {
           const addonValid = config.addons.find((a) => a.title === addon);
@@ -498,7 +554,10 @@ export class CustomDesignService {
         errors.push('Invalid step number');
     }
 
-    return { isValid: errors.length === 0, errors: errors.length > 0 ? errors : undefined };
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -509,8 +568,13 @@ export class CustomDesignService {
     const design = await this.repo.findOne({ where: { id } });
     if (!design) throw new NotFoundException('Custom design not found');
 
-    if (design.status !== CustomDesignStatus.SUBMITTED && design.status !== CustomDesignStatus.UNDER_REVIEW) {
-      throw new BadRequestException('Only submitted or under-review designs can be approved');
+    if (
+      design.status !== CustomDesignStatus.SUBMITTED &&
+      design.status !== CustomDesignStatus.UNDER_REVIEW
+    ) {
+      throw new BadRequestException(
+        'Only submitted or under-review designs can be approved',
+      );
     }
 
     design.status = CustomDesignStatus.APPROVED;
@@ -536,8 +600,13 @@ export class CustomDesignService {
     const design = await this.repo.findOne({ where: { id } });
     if (!design) throw new NotFoundException('Custom design not found');
 
-    if (design.status !== CustomDesignStatus.SUBMITTED && design.status !== CustomDesignStatus.UNDER_REVIEW) {
-      throw new BadRequestException('Only submitted or under-review designs can be rejected');
+    if (
+      design.status !== CustomDesignStatus.SUBMITTED &&
+      design.status !== CustomDesignStatus.UNDER_REVIEW
+    ) {
+      throw new BadRequestException(
+        'Only submitted or under-review designs can be rejected',
+      );
     }
 
     design.status = CustomDesignStatus.REJECTED;
@@ -563,16 +632,31 @@ export class CustomDesignService {
   // AGENT: Approve / Reject (Assigned Project)
   // ---------------------------------------------------------------------------
 
-  async agentApprove(id: string, userId: string, notes?: string): Promise<CustomDesignResponseDto> {
+  async agentApprove(
+    id: string,
+    userId: string,
+    notes?: string,
+  ): Promise<CustomDesignResponseDto> {
     const design = await this.repo.findOne({ where: { id } });
     if (!design) throw new NotFoundException('Custom design not found');
 
-    const agent = await this.repo.manager.findOne('Agent', { where: { userId } }) as any;
-    if (!agent) throw new ForbiddenException('Only registered agents can perform this action');
-    if (design.agentId !== agent.id) throw new ForbiddenException('You are not assigned to this project');
+    const agent = (await this.repo.manager.findOne('Agent', {
+      where: { userId },
+    })) as any;
+    if (!agent)
+      throw new ForbiddenException(
+        'Only registered agents can perform this action',
+      );
+    if (design.agentId !== agent.id)
+      throw new ForbiddenException('You are not assigned to this project');
 
-    if (design.status !== CustomDesignStatus.SUBMITTED && design.status !== CustomDesignStatus.UNDER_REVIEW) {
-      throw new BadRequestException('Only submitted or under-review designs can be approved');
+    if (
+      design.status !== CustomDesignStatus.SUBMITTED &&
+      design.status !== CustomDesignStatus.UNDER_REVIEW
+    ) {
+      throw new BadRequestException(
+        'Only submitted or under-review designs can be approved',
+      );
     }
 
     design.status = CustomDesignStatus.APPROVED;
@@ -594,16 +678,31 @@ export class CustomDesignService {
     return this.toResponse(saved);
   }
 
-  async agentReject(id: string, userId: string, reason?: string): Promise<CustomDesignResponseDto> {
+  async agentReject(
+    id: string,
+    userId: string,
+    reason?: string,
+  ): Promise<CustomDesignResponseDto> {
     const design = await this.repo.findOne({ where: { id } });
     if (!design) throw new NotFoundException('Custom design not found');
 
-    const agent = await this.repo.manager.findOne('Agent', { where: { userId } }) as any;
-    if (!agent) throw new ForbiddenException('Only registered agents can perform this action');
-    if (design.agentId !== agent.id) throw new ForbiddenException('You are not assigned to this project');
+    const agent = (await this.repo.manager.findOne('Agent', {
+      where: { userId },
+    })) as any;
+    if (!agent)
+      throw new ForbiddenException(
+        'Only registered agents can perform this action',
+      );
+    if (design.agentId !== agent.id)
+      throw new ForbiddenException('You are not assigned to this project');
 
-    if (design.status !== CustomDesignStatus.SUBMITTED && design.status !== CustomDesignStatus.UNDER_REVIEW) {
-      throw new BadRequestException('Only submitted or under-review designs can be rejected');
+    if (
+      design.status !== CustomDesignStatus.SUBMITTED &&
+      design.status !== CustomDesignStatus.UNDER_REVIEW
+    ) {
+      throw new BadRequestException(
+        'Only submitted or under-review designs can be rejected',
+      );
     }
 
     design.status = CustomDesignStatus.REJECTED;
@@ -629,11 +728,16 @@ export class CustomDesignService {
   // PRIVATE HELPERS
   // ---------------------------------------------------------------------------
 
-  private async getOwnedDesign(id: string, userId: string): Promise<CustomDesign> {
+  private async getOwnedDesign(
+    id: string,
+    userId: string,
+  ): Promise<CustomDesign> {
     const design = await this.repo.findOne({ where: { id } });
     if (!design) throw new NotFoundException('Custom design not found');
     if (design.userId !== userId) {
-      throw new ForbiddenException('You do not have permission to modify this custom design');
+      throw new ForbiddenException(
+        'You do not have permission to modify this custom design',
+      );
     }
     return design;
   }
@@ -747,9 +851,9 @@ export class CustomDesignService {
       'Multi-Unit Building': 1.2,
       'High-Rise / Complex Facility': 1.8,
       // Structural
-      'Small': 0.8,
-      'Medium': 1.0,
-      'Large': 1.5,
+      Small: 0.8,
+      Medium: 1.0,
+      Large: 1.5,
     };
 
     const sizeMult = sizeMultipliers[design.sizeComplexity ?? ''] ?? 1.0;
@@ -772,7 +876,8 @@ export class CustomDesignService {
       if (val !== undefined) qb.andWhere(`cd.${key} = :${key}`, { [key]: val });
     });
 
-    if (serviceType) qb.andWhere('cd.serviceType = :serviceType', { serviceType });
+    if (serviceType)
+      qb.andWhere('cd.serviceType = :serviceType', { serviceType });
     if (status) qb.andWhere('cd.status = :status', { status });
 
     const total = await qb.getCount();
@@ -812,7 +917,9 @@ export class CustomDesignService {
       status: design.status,
       isSubmitted: design.isSubmitted,
       submittedAt: design.submittedAt,
-      estimateCost: design.estimateCost ? Number(design.estimateCost) : undefined,
+      estimateCost: design.estimateCost
+        ? Number(design.estimateCost)
+        : undefined,
       estimateTimeline: design.estimateTimeline,
       estimateNotes: design.estimateNotes,
       payment: design.payment,
@@ -829,14 +936,18 @@ export class CustomDesignService {
     const design = await this.getOwnedDesign(id, userId);
 
     if (design.status !== CustomDesignStatus.APPROVED) {
-      throw new BadRequestException('Can only set agreed price for approved designs');
+      throw new BadRequestException(
+        'Can only set agreed price for approved designs',
+      );
     }
 
     if (!design.agentId) {
       throw new BadRequestException('No agent assigned to this custom design');
     }
 
-    let payment = await this.paymentRepo.findOne({ where: { customDesignId: id } });
+    let payment = await this.paymentRepo.findOne({
+      where: { customDesignId: id },
+    });
     if (payment && payment.status === CustomDesignPaymentStatus.PAID) {
       throw new BadRequestException('This design has already been paid for');
     }
@@ -857,10 +968,10 @@ export class CustomDesignService {
     await this.paymentRepo.save(payment);
 
     // Notify Agent
-    const agent = await this.repo.manager.findOne('Agent', {
+    const agent = (await this.repo.manager.findOne('Agent', {
       where: { id: design.agentId },
-      relations: ['user']
-    }) as any;
+      relations: ['user'],
+    })) as any;
 
     if (agent?.user) {
       await this.notificationService.createNotification(
@@ -882,28 +993,41 @@ export class CustomDesignService {
           NotificationType.WALLET,
           'Price Agreement Update',
           `An agreed price of ₦${dto.price} has been set for a custom design project.`,
-          { customDesignId: id, price: dto.price }
+          { customDesignId: id, price: dto.price },
         );
       }
     }
 
-    return { message: 'Agreed price set. Waiting for agent confirmation.', payment };
+    return {
+      message: 'Agreed price set. Waiting for agent confirmation.',
+      payment,
+    };
   }
 
   async confirmAgreedPrice(id: string, agentUserId: string) {
-    const design = await this.repo.findOne({ where: { id }, relations: ['agent', 'agent.user'] });
+    const design = await this.repo.findOne({
+      where: { id },
+      relations: ['agent', 'agent.user'],
+    });
     if (!design) throw new NotFoundException('Custom design not found');
 
     if (design.agent?.userId !== agentUserId) {
-      throw new ForbiddenException('Only the assigned agent can confirm the price');
+      throw new ForbiddenException(
+        'Only the assigned agent can confirm the price',
+      );
     }
 
     if (design.agent?.registrationStatus !== AgentRegistrationStatus.APPROVED) {
-      throw new ForbiddenException('Your agent account is not currently approved to perform this action.');
+      throw new ForbiddenException(
+        'Your agent account is not currently approved to perform this action.',
+      );
     }
 
-    const payment = await this.paymentRepo.findOne({ where: { customDesignId: id } });
-    if (!payment) throw new NotFoundException('Price hasn\'t been set by the user yet');
+    const payment = await this.paymentRepo.findOne({
+      where: { customDesignId: id },
+    });
+    if (!payment)
+      throw new NotFoundException("Price hasn't been set by the user yet");
 
     payment.isConfirmedByAgent = true;
     payment.status = CustomDesignPaymentStatus.AWAITING_PAYMENT;
@@ -925,19 +1049,23 @@ export class CustomDesignService {
   async initializePayment(id: string, userId: string) {
     const payment = await this.paymentRepo.findOne({
       where: { customDesignId: id, userId },
-      relations: ['user']
+      relations: ['user'],
     });
 
     if (!payment) throw new NotFoundException('Payment record not found');
     if (!payment.isConfirmedByAgent) {
-      throw new BadRequestException('Agent has not confirmed the agreed price yet');
+      throw new BadRequestException(
+        'Agent has not confirmed the agreed price yet',
+      );
     }
     if (payment.status === CustomDesignPaymentStatus.PAID) {
       throw new BadRequestException('This design is already paid');
     }
 
     const amountInKobo = Math.round(Number(payment.agreedPrice) * 100);
-    const callbackUrl = this.configService.get<string>('PAYSTACK_CALLBACK_URL') || 'http://localhost:3000/custom-design/verify-payment';
+    const callbackUrl =
+      this.configService.get<string>('PAYSTACK_CALLBACK_URL') ||
+      'http://localhost:3000/custom-design/verify-payment';
 
     try {
       const response = await axios.post(
@@ -949,12 +1077,14 @@ export class CustomDesignService {
           metadata: {
             customDesignId: id,
             paymentId: payment.id,
-            type: 'custom_design_payment'
-          }
+            type: 'custom_design_payment',
+          },
         },
         {
-          headers: { Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}` }
-        }
+          headers: {
+            Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}`,
+          },
+        },
       );
 
       payment.paystackData = response.data.data;
@@ -962,28 +1092,42 @@ export class CustomDesignService {
 
       return response.data.data;
     } catch (error) {
-      throw new BadRequestException('Failed to initialize Paystack payment: ' + (error.response?.data?.message || error.message));
+      throw new BadRequestException(
+        'Failed to initialize Paystack payment: ' +
+          (error.response?.data?.message || error.message),
+      );
     }
   }
 
   async verifyPayment(reference: string) {
     try {
-      const response = await axios.get(`${this.PAYSTACK_VERIFY_URL}/${reference}`, {
-        headers: { Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}` },
-      });
+      const response = await axios.get(
+        `${this.PAYSTACK_VERIFY_URL}/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}`,
+          },
+        },
+      );
 
       const data = response.data.data;
-      if (data.status !== 'success') throw new BadRequestException('Payment verification failed.');
+      if (data.status !== 'success')
+        throw new BadRequestException('Payment verification failed.');
 
-      const paymentRecord = await this.paymentRepo.createQueryBuilder('p')
+      const paymentRecord = await this.paymentRepo
+        .createQueryBuilder('p')
         .leftJoinAndSelect('p.customDesign', 'cd')
         .leftJoinAndSelect('cd.agent', 'agent')
         .leftJoinAndSelect('agent.user', 'user')
         .where(`p.paystackData->>'reference' = :reference`, { reference })
         .getOne();
 
-      if (!paymentRecord) throw new BadRequestException(`Payment with reference ${reference} not found.`);
-      if (paymentRecord.status === CustomDesignPaymentStatus.PAID) return { message: 'Already verified', payment: paymentRecord };
+      if (!paymentRecord)
+        throw new BadRequestException(
+          `Payment with reference ${reference} not found.`,
+        );
+      if (paymentRecord.status === CustomDesignPaymentStatus.PAID)
+        return { message: 'Already verified', payment: paymentRecord };
 
       const amountPaid = data.amount / 100;
       paymentRecord.status = CustomDesignPaymentStatus.PAID;
@@ -993,14 +1137,14 @@ export class CustomDesignService {
 
       // 10% commission logic
       if (paymentRecord.customDesign?.agentId) {
-        const agentShare = amountPaid * 0.90;
+        const agentShare = amountPaid * 0.9;
         const description = `Custom Design Completion: ${paymentRecord.customDesign.serviceContext}`;
 
         await this.walletService.creditWallet(
           paymentRecord.customDesign.agentId,
           agentShare,
           description,
-          TransactionCategory.CUSTOM_DESIGN
+          TransactionCategory.CUSTOM_DESIGN,
         );
       }
 
@@ -1018,7 +1162,10 @@ export class CustomDesignService {
       );
 
       // Notify Agent
-      if (paymentRecord.customDesign.agentId && paymentRecord.customDesign.agent?.user) {
+      if (
+        paymentRecord.customDesign.agentId &&
+        paymentRecord.customDesign.agent?.user
+      ) {
         await this.notificationService.createNotification(
           paymentRecord.customDesign.agent.user.id,
           NotificationType.AGENT_MESSAGE,
@@ -1031,7 +1178,7 @@ export class CustomDesignService {
 
       return {
         message: 'Payment verified and agent credited',
-        payment: paymentRecord
+        payment: paymentRecord,
       };
     } catch (error) {
       throw new BadRequestException('Verification failed: ' + error.message);

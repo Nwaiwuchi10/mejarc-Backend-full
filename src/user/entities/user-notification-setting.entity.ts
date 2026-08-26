@@ -61,7 +61,9 @@ export class UserNotificationSetting {
   @Column({ default: false })
   smsNotifications: boolean;
 
-  @OneToOne(() => User, (user) => user.notificationSettings, { onDelete: 'CASCADE' })
+  @OneToOne(() => User, (user) => user.notificationSettings, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'userId' })
   user: User;
 

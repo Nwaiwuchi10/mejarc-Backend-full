@@ -25,7 +25,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, AWS_S3_BUCKET_NAME } from '../utils/aws-s3.config';
 import { Wallet } from '../wallet/entities/wallet.entity';
-import { WalletTransaction, TransactionType, TransactionCategory } from '../wallet/entities/wallet-transaction.entity';
+import {
+  WalletTransaction,
+  TransactionType,
+  TransactionCategory,
+} from '../wallet/entities/wallet-transaction.entity';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/entities/notification.entity';
 
@@ -51,10 +55,15 @@ export class OrderService {
     private readonly paystackService: PaystackService,
     private mailService: MailService,
     private readonly notificationService: NotificationService,
-  ) { }
+  ) {}
 
   async createOrder(createOrderDTO: CreateOrderDto, userId?: string) {
-    const { orderItems = [], redirect_url, email, billingInfo } = createOrderDTO;
+    const {
+      orderItems = [],
+      redirect_url,
+      email,
+      billingInfo,
+    } = createOrderDTO;
 
     let userEmail: string;
     let userFirstName = '';
@@ -62,12 +71,14 @@ export class OrderService {
 
     if (userId) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
-      if (!user) throw new BadRequestException(`User with ID ${userId} not found`);
+      if (!user)
+        throw new BadRequestException(`User with ID ${userId} not found`);
       userEmail = user.email;
       userFirstName = user.firstName;
       userLastName = user.lastName;
     } else {
-      if (!email) throw new BadRequestException('Email is required for guest checkout.');
+      if (!email)
+        throw new BadRequestException('Email is required for guest checkout.');
       userEmail = email;
     }
 
@@ -76,8 +87,13 @@ export class OrderService {
 
     if (orderItems.length > 0) {
       for (const item of orderItems) {
-        const product = await this.productRepository.findOne({ where: { id: item.productId } });
-        if (!product) throw new BadRequestException(`Product with ID ${item.productId} not found`);
+        const product = await this.productRepository.findOne({
+          where: { id: item.productId },
+        });
+        if (!product)
+          throw new BadRequestException(
+            `Product with ID ${item.productId} not found`,
+          );
         const totalPrice = Number(product.price) * item.totalQuantity;
         grandTotal += totalPrice;
         validatedOrderItems.push({
@@ -101,7 +117,9 @@ export class OrderService {
     );
 
     if (!paystackResponse?.data?.reference) {
-      throw new BadRequestException('Failed to generate Paystack payment reference.');
+      throw new BadRequestException(
+        'Failed to generate Paystack payment reference.',
+      );
     }
 
     const newOrder = this.orderRepository.create({
@@ -126,7 +144,7 @@ export class OrderService {
     await this.orderRepository.save(newOrder);
 
     // Create OrderItems
-    const orderItemsToSave = validatedOrderItems.map(item => {
+    const orderItemsToSave = validatedOrderItems.map((item) => {
       const orderItem = new OrderItem();
       orderItem.order = newOrder;
       orderItem.productId = item.productId;
@@ -168,21 +186,32 @@ export class OrderService {
 
   // Same logic as createOrder
 
-
   async verifyPaystackPayment(reference: string) {
     try {
-      const response = await axios.get(`${this.PAYSTACK_VERIFY_URL}/${reference}`, {
-        headers: { Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}` },
-      });
+      const response = await axios.get(
+        `${this.PAYSTACK_VERIFY_URL}/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.configService.get<string>('PAYSTACK_SECRET_KEY')}`,
+          },
+        },
+      );
 
       const data = response.data.data;
-      if (data.status !== 'success') throw new BadRequestException('Payment verification failed.');
+      if (data.status !== 'success')
+        throw new BadRequestException('Payment verification failed.');
 
-      const order = await this.orderRepository.createQueryBuilder('order')
-        .where(`"order"."payStackPayment"->>'reference' = :reference`, { reference })
+      const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .where(`"order"."payStackPayment"->>'reference' = :reference`, {
+          reference,
+        })
         .getOne();
 
-      if (!order) throw new BadRequestException(`Order with reference ${reference} not found.`);
+      if (!order)
+        throw new BadRequestException(
+          `Order with reference ${reference} not found.`,
+        );
 
       if (order.isPaid) {
         return {
@@ -196,9 +225,14 @@ export class OrderService {
       }
 
       const customerEmail = data.customer?.email;
-      if (!customerEmail) throw new BadRequestException('Customer email not found from Paystack response.');
+      if (!customerEmail)
+        throw new BadRequestException(
+          'Customer email not found from Paystack response.',
+        );
 
-      let user = await this.userRepository.findOne({ where: { email: customerEmail } });
+      let user = await this.userRepository.findOne({
+        where: { email: customerEmail },
+      });
 
       if (!user) {
         const generatedPassword = uuidv4().slice(0, 10);
@@ -211,7 +245,10 @@ export class OrderService {
         await this.userRepository.save(user);
 
         try {
-          await this.mailService.sendAccountCreatedMail(user.email, generatedPassword);
+          await this.mailService.sendAccountCreatedMail(
+            user.email,
+            generatedPassword,
+          );
         } catch (error) {
           console.error('Failed to send account creation mail', error.message);
         }
@@ -256,7 +293,7 @@ export class OrderService {
         for (const item of orderDetails.orderItems) {
           const product = await this.productRepository.findOne({
             where: { id: item.productId },
-            relations: ['agent', 'agent.wallet']
+            relations: ['agent', 'agent.wallet'],
           });
 
           if (product && product.agent) {
@@ -270,14 +307,18 @@ export class OrderService {
               wallet.lifetimeEarnings = 0;
               wallet.pendingClearance = 0;
               await this.orderRepository.manager.save(wallet);
-              this.logger.log(`Created new wallet for agent ${product.agent.id}`);
+              this.logger.log(
+                `Created new wallet for agent ${product.agent.id}`,
+              );
             }
 
-            const productTotal = Number(product.price) * (item.totalQuantity || 1);
-            const agentShare = productTotal * 0.90; // 90% to agent
+            const productTotal =
+              Number(product.price) * (item.totalQuantity || 1);
+            const agentShare = productTotal * 0.9; // 90% to agent
 
             wallet.balance = Number(wallet.balance) + agentShare;
-            wallet.lifetimeEarnings = Number(wallet.lifetimeEarnings) + agentShare;
+            wallet.lifetimeEarnings =
+              Number(wallet.lifetimeEarnings) + agentShare;
 
             // Save updated wallet
             await this.orderRepository.manager.save(wallet);
@@ -317,16 +358,33 @@ export class OrderService {
       }
 
       try {
-        await this.mailService.VerifyOrder(user.email, user.firstName, user.lastName, amountInNaira, reference, data.status, orderDetails?.orderItems);
+        await this.mailService.VerifyOrder(
+          user.email,
+          user.firstName,
+          user.lastName,
+          amountInNaira,
+          reference,
+          data.status,
+          orderDetails?.orderItems,
+        );
       } catch (err) {
-        console.error(`Failed to send payment confirmation email to ${user.email}`);
+        console.error(
+          `Failed to send payment confirmation email to ${user.email}`,
+        );
       }
 
       try {
         if (orderDetails) {
           await this.mailService.Invoice(
-            user.email, user.firstName, user.lastName, order.grandTotal, reference, data.status,
-            orderDetails.orderItems, null, orderDetails.createdAt,
+            user.email,
+            user.firstName,
+            user.lastName,
+            order.grandTotal,
+            reference,
+            data.status,
+            orderDetails.orderItems,
+            null,
+            orderDetails.createdAt,
           );
         }
       } catch (err) {
@@ -336,8 +394,15 @@ export class OrderService {
       try {
         if (orderDetails) {
           await this.mailService.notifyAdminOfInvoice(
-            user.email, user.firstName, user.lastName, order.grandTotal, reference, 'success',
-            orderDetails.orderItems, null, orderDetails.createdAt,
+            user.email,
+            user.firstName,
+            user.lastName,
+            order.grandTotal,
+            reference,
+            'success',
+            orderDetails.orderItems,
+            null,
+            orderDetails.createdAt,
           );
         }
       } catch (error) {
@@ -347,10 +412,18 @@ export class OrderService {
       // Handle Product File Delivery to User
       try {
         if (orderDetails && orderDetails.orderItems?.length > 0) {
-          await this.mailService.sendProductDeliveryMail(user.email, user.firstName, orderDetails.orderItems, orderDetails);
+          await this.mailService.sendProductDeliveryMail(
+            user.email,
+            user.firstName,
+            orderDetails.orderItems,
+            orderDetails,
+          );
         }
       } catch (error) {
-        console.error(`Failed to send product delivery email to User ${user.email}`, error);
+        console.error(
+          `Failed to send product delivery email to User ${user.email}`,
+          error,
+        );
       }
 
       // Notice to Agent(s)
@@ -359,17 +432,18 @@ export class OrderService {
           for (const item of orderDetails.orderItems) {
             const product = await this.productRepository.findOne({
               where: { id: item.productId },
-              relations: ['agent', 'agent.user']
+              relations: ['agent', 'agent.user'],
             });
 
             if (product && product.agent && product.agent.user) {
-              const productTotal = Number(product.price) * (item.totalQuantity || 1);
-              const agentShare = productTotal * 0.90;
+              const productTotal =
+                Number(product.price) * (item.totalQuantity || 1);
+              const agentShare = productTotal * 0.9;
               await this.mailService.notifyAgentOfProductSale(
                 product.agent.user.email,
                 product.agent.user.firstName || 'Agent',
                 product.title,
-                agentShare
+                agentShare,
               );
             }
           }
@@ -393,7 +467,7 @@ export class OrderService {
         originalError: error.toString(),
         stack: error.stack,
         isNestException: error instanceof BadRequestException,
-        errorResponse: error.response
+        errorResponse: error.response,
       });
     }
   }
@@ -403,8 +477,11 @@ export class OrderService {
     if (event !== 'charge.success') return;
 
     const reference = data.reference;
-    const order = await this.orderRepository.createQueryBuilder('order')
-      .where(`"order"."payStackPayment"->>'reference' = :reference`, { reference })
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .where(`"order"."payStackPayment"->>'reference' = :reference`, {
+        reference,
+      })
       .getOne();
 
     if (!order || order.isPaid) return;
@@ -440,7 +517,13 @@ export class OrderService {
   async findOrderDetails(id: string) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
     if (!order) throw new BadRequestException(`Order with ${id} not found`);
 
@@ -457,7 +540,13 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
@@ -471,11 +560,20 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
-  async findLoginUserAllApprovedOrderPagination(query: Query, userId: string): Promise<Order[]> {
+  async findLoginUserAllApprovedOrderPagination(
+    query: Query,
+    userId: string,
+  ): Promise<Order[]> {
     const resPerPage = 10;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
@@ -485,7 +583,13 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
@@ -499,11 +603,20 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
-  async findLoginUserAllNotApprovedOrderPagination(query: Query, userId: string): Promise<Order[]> {
+  async findLoginUserAllNotApprovedOrderPagination(
+    query: Query,
+    userId: string,
+  ): Promise<Order[]> {
     const resPerPage = 10;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
@@ -513,11 +626,20 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
-  async findAllLoginUserOrderPagination(query: Query, userId: string): Promise<Order[]> {
+  async findAllLoginUserOrderPagination(
+    query: Query,
+    userId: string,
+  ): Promise<Order[]> {
     const resPerPage = 10;
     const currentPage = Number(query.page) || 1;
     const skip = resPerPage * (currentPage - 1);
@@ -527,24 +649,45 @@ export class OrderService {
       order: { createdAt: 'DESC' },
       take: resPerPage,
       skip,
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
-  async findAllUserOrderPagination(query: Query, userId: string): Promise<Order[]> {
+  async findAllUserOrderPagination(
+    query: Query,
+    userId: string,
+  ): Promise<Order[]> {
     return this.findAllLoginUserOrderPagination(query, userId);
   }
 
   async findAll() {
     return this.orderRepository.find({
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
   }
 
   async findOne(id: string) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
+      relations: [
+        'user',
+        'orderItems',
+        'orderItems.product',
+        'orderItems.product.agent',
+        'orderItems.product.agent.user',
+      ],
     });
     if (!order) throw new BadRequestException(`Order with ${id} not found`);
     return { order };
@@ -556,13 +699,18 @@ export class OrderService {
 
     const customer = await this.orderRepository.findOne({ where: { userId } });
     const adminUser = await this.adminRepository.findOne({ where: { userId } });
-    if (!customer && !adminUser) throw new NotFoundException('Only Admin & Customer for the order is permitted to add a comment');
+    if (!customer && !adminUser)
+      throw new NotFoundException(
+        'Only Admin & Customer for the order is permitted to add a comment',
+      );
 
     let PicsUrl: string | undefined;
 
     if (addCommentDto.fileUrl) {
       if (addCommentDto.fileUrl.startsWith('data:')) {
-        const matches = addCommentDto.fileUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        const matches = addCommentDto.fileUrl.match(
+          /^data:([A-Za-z-+\/]+);base64,(.+)$/,
+        );
         if (matches && matches.length === 3) {
           try {
             const buffer = Buffer.from(matches[2], 'base64');
@@ -572,7 +720,7 @@ export class OrderService {
               Key: `Order/${fileName}`,
               Body: buffer,
               ContentType: matches[1],
-              ACL: 'public-read'
+              ACL: 'public-read',
             });
             await s3Client!.send(command);
             PicsUrl = `https://${AWS_S3_BUCKET_NAME}.s3.amazonaws.com/Order/${fileName}`;
@@ -583,7 +731,7 @@ export class OrderService {
           }
         }
       } else {
-        PicsUrl = addCommentDto.fileUrl as string;
+        PicsUrl = addCommentDto.fileUrl;
       }
     }
 
@@ -606,13 +754,21 @@ export class OrderService {
     return `This action removes a #${id} order`;
   }
 
-  async addCommentFormData(id: string, addCommentDto: AddCommentDto, userId: string, file?: Express.Multer.File) {
+  async addCommentFormData(
+    id: string,
+    addCommentDto: AddCommentDto,
+    userId: string,
+    file?: Express.Multer.File,
+  ) {
     const order = await this.orderRepository.findOne({ where: { id } });
     if (!order) throw new NotFoundException('Order not found');
 
     const customer = await this.orderRepository.findOne({ where: { userId } });
     const adminUser = await this.adminRepository.findOne({ where: { userId } });
-    if (!customer && !adminUser) throw new NotFoundException('Only Admin & Customer for the order is permitted to add a comment');
+    if (!customer && !adminUser)
+      throw new NotFoundException(
+        'Only Admin & Customer for the order is permitted to add a comment',
+      );
 
     if (file) {
       try {
@@ -634,13 +790,21 @@ export class OrderService {
     return this.orderRepository.save(order);
   }
 
-  async addCommentFormDataCLOUD(id: string, addCommentDto: AddCommentDto, userId: string, file?: Express.Multer.File) {
+  async addCommentFormDataCLOUD(
+    id: string,
+    addCommentDto: AddCommentDto,
+    userId: string,
+    file?: Express.Multer.File,
+  ) {
     const order = await this.orderRepository.findOne({ where: { id } });
     if (!order) throw new NotFoundException('Order not found');
 
     const customer = await this.orderRepository.findOne({ where: { userId } });
     const adminUser = await this.adminRepository.findOne({ where: { userId } });
-    if (!customer && !adminUser) throw new NotFoundException('Only Admin & Customer for the order is permitted to add a comment');
+    if (!customer && !adminUser)
+      throw new NotFoundException(
+        'Only Admin & Customer for the order is permitted to add a comment',
+      );
 
     let imgUrl: string | undefined;
     if (file) {
@@ -651,7 +815,7 @@ export class OrderService {
           Key: `Order/${fileName}`,
           Body: file.buffer,
           ContentType: file.mimetype,
-          ACL: 'public-read'
+          ACL: 'public-read',
         });
         if (s3Client) {
           await s3Client.send(command);
@@ -674,5 +838,4 @@ export class OrderService {
     order.comments = [...(order.comments || []), newComment];
     return this.orderRepository.save(order);
   }
-
 }

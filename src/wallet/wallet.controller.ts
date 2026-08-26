@@ -12,6 +12,16 @@ import {
   HttpCode,
   BadRequestException,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { WithdrawDto } from './dto/withdraw.dto';
 import { UserAuthGuard } from '../user/guard/user.guard';
@@ -23,9 +33,9 @@ import { AuditLogService } from './services/audit-log.service';
 import {
   RegisterBankAccountDto,
   VerifyBankAccountDto,
-  SetDefaultBankAccountDto,
 } from './dto/bank-account.dto';
 
+@ApiTags('Wallet')
 @Controller('wallet')
 export class WalletController {
   constructor(
@@ -40,26 +50,28 @@ export class WalletController {
   // BANK ACCOUNT ENDPOINTS
   // ========================================
 
-  /**
-   * Register a new bank account
-   * POST /wallet/bank-account/register
-   */
   @UseGuards(UserAuthGuard)
   @Post('bank-account/register')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Register a new bank account for vendor / agent' })
+  @ApiResponse({ status: 201, description: 'Bank account registered' })
   async registerBankAccount(
     @Req() req,
     @Body() registerDto: RegisterBankAccountDto,
   ) {
     const userId = req.userId;
-    return this.bankAccountService.registerBankAccountByUserId(userId, registerDto);
+    return this.bankAccountService.registerBankAccountByUserId(
+      userId,
+      registerDto,
+    );
   }
 
-  /**
-   * Verify bank account with Paystack
-   * POST /wallet/bank-account/verify/:bankAccountId
-   */
   @UseGuards(UserAuthGuard)
   @Post('bank-account/verify/:bankAccountId')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Verify bank account details via Paystack' })
+  @ApiParam({ name: 'bankAccountId', description: 'Bank Account ID UUID' })
+  @ApiResponse({ status: 200, description: 'Bank account verified' })
   async verifyBankAccount(
     @Req() req,
     @Param('bankAccountId') bankAccountId: string,
@@ -73,23 +85,22 @@ export class WalletController {
     );
   }
 
-  /**
-   * Get all bank accounts for the vendor
-   * GET /wallet/bank-account
-   */
   @UseGuards(UserAuthGuard)
   @Get('bank-account')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all saved bank accounts for the user' })
+  @ApiResponse({ status: 200, description: 'List of bank accounts' })
   async getBankAccounts(@Req() req) {
     const userId = req.userId;
     return this.bankAccountService.getBankAccountsByUserId(userId);
   }
 
-  /**
-   * Set default bank account for withdrawals
-   * PATCH /wallet/bank-account/default/:bankAccountId
-   */
   @UseGuards(UserAuthGuard)
   @Patch('bank-account/default/:bankAccountId')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Set default bank account for payouts' })
+  @ApiParam({ name: 'bankAccountId', description: 'Bank Account ID UUID' })
+  @ApiResponse({ status: 200, description: 'Default bank account updated' })
   async setDefaultBankAccount(
     @Req() req,
     @Param('bankAccountId') bankAccountId: string,
@@ -101,12 +112,12 @@ export class WalletController {
     );
   }
 
-  /**
-   * Delete bank account
-   * DELETE /wallet/bank-account/:bankAccountId
-   */
   @UseGuards(UserAuthGuard)
   @Delete('bank-account/:bankAccountId')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete a registered bank account' })
+  @ApiParam({ name: 'bankAccountId', description: 'Bank Account ID UUID' })
+  @ApiResponse({ status: 200, description: 'Bank account deleted' })
   async deleteBankAccount(
     @Req() req,
     @Param('bankAccountId') bankAccountId: string,
@@ -119,20 +130,18 @@ export class WalletController {
     return { message: 'Bank account deleted successfully' };
   }
 
-  /**
-   * Get available banks for dropdown
-   * GET /wallet/banks
-   */
   @Get('banks')
+  @ApiOperation({
+    summary: 'Get list of supported banks from Paystack (Public)',
+  })
+  @ApiResponse({ status: 200, description: 'Bank list' })
   async getBanks() {
     return this.paystackService.getBankList();
   }
 
-  /**
-   * Get public/vendor withdrawal rules & limits
-   * GET /wallet/rules
-   */
   @Get('rules')
+  @ApiOperation({ summary: 'Get public withdrawal limits and rules' })
+  @ApiResponse({ status: 200, description: 'Withdrawal rules' })
   async getWithdrawalRules() {
     return this.walletService.getWithdrawalSettings();
   }
@@ -143,16 +152,21 @@ export class WalletController {
 
   @UseGuards(UserAuthGuard)
   @Get('overview/:userId')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Get wallet balances, escrow balance, and pending payouts',
+  })
+  @ApiParam({ name: 'userId', description: 'User ID UUID' })
+  @ApiResponse({ status: 200, description: 'Wallet overview' })
   getOverview(@Param('userId') userId: string) {
     return this.walletService.getOverview(userId);
   }
 
-  /**
-   * Enhanced withdrawal endpoint with Paystack integration
-   * POST /wallet/withdraw
-   */
   @UseGuards(UserAuthGuard)
   @Post('withdraw')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Request a funds withdrawal from wallet' })
+  @ApiResponse({ status: 201, description: 'Withdrawal initiated' })
   withdraw(@Req() req, @Body() withdrawDto: WithdrawDto) {
     const userId = req.userId;
     return this.walletService.withdraw(userId, withdrawDto);
@@ -160,6 +174,9 @@ export class WalletController {
 
   @UseGuards(UserAuthGuard)
   @Get('transactions')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get transaction history of user' })
+  @ApiResponse({ status: 200, description: 'Transaction history' })
   getTransactions(@Req() req) {
     const userId = req.userId;
     return this.walletService.getTransactions(userId);
@@ -167,17 +184,20 @@ export class WalletController {
 
   @UseGuards(UserAuthGuard)
   @Get('withdrawals')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get withdrawal history of user' })
+  @ApiResponse({ status: 200, description: 'Withdrawal history' })
   getMyWithdrawals(@Req() req) {
     const userId = req.userId;
     return this.walletService.getMyWithdrawals(userId);
   }
 
-  /**
-   * Get withdrawal details
-   * GET /wallet/withdrawals/:withdrawalId
-   */
   @UseGuards(UserAuthGuard)
   @Get('withdrawals/:withdrawalId')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get specific withdrawal details' })
+  @ApiParam({ name: 'withdrawalId', description: 'Withdrawal ID UUID' })
+  @ApiResponse({ status: 200, description: 'Withdrawal details' })
   async getWithdrawalDetails(
     @Req() req,
     @Param('withdrawalId') withdrawalId: string,
@@ -191,12 +211,18 @@ export class WalletController {
 
   @UseGuards(AdminAuthGuard)
   @Get('admin/withdrawal-settings')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get admin withdrawal settings' })
+  @ApiResponse({ status: 200, description: 'Settings' })
   getWithdrawalSettings() {
     return this.walletService.getWithdrawalSettings();
   }
 
   @UseGuards(AdminAuthGuard)
   @Patch('admin/withdrawal-settings')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update admin withdrawal settings' })
+  @ApiResponse({ status: 200, description: 'Settings updated' })
   updateWithdrawalSettings(
     @Body()
     dto: {
@@ -210,12 +236,19 @@ export class WalletController {
 
   @UseGuards(AdminAuthGuard)
   @Get('admin/withdrawals')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all withdrawals for admin review' })
+  @ApiResponse({ status: 200, description: 'All withdrawals' })
   getAllWithdrawals() {
     return this.walletService.getAllWithdrawals();
   }
 
   @UseGuards(AdminAuthGuard)
   @Post('admin/withdrawals/:id/approve')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Admin approve withdrawal' })
+  @ApiParam({ name: 'id', description: 'Withdrawal ID UUID' })
+  @ApiResponse({ status: 200, description: 'Withdrawal approved' })
   approveWithdrawal(
     @Req() req,
     @Param('id') id: string,
@@ -226,6 +259,10 @@ export class WalletController {
 
   @UseGuards(AdminAuthGuard)
   @Post('admin/withdrawals/:id/reject')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Admin reject withdrawal' })
+  @ApiParam({ name: 'id', description: 'Withdrawal ID UUID' })
+  @ApiResponse({ status: 200, description: 'Withdrawal rejected' })
   rejectWithdrawal(
     @Req() req,
     @Param('id') id: string,
@@ -234,56 +271,55 @@ export class WalletController {
     return this.walletService.rejectWithdrawal(id, reason, req.adminId);
   }
 
-  /**
-   * Get audit logs for a withdrawal
-   * GET /admin/withdrawals/:withdrawalId/audit-logs
-   */
   @UseGuards(AdminAuthGuard)
   @Get('admin/withdrawals/:withdrawalId/audit-logs')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get audit logs for a specific withdrawal' })
+  @ApiParam({ name: 'withdrawalId', description: 'Withdrawal ID UUID' })
+  @ApiResponse({ status: 200, description: 'Audit logs' })
   async getWithdrawalAuditLogs(@Param('withdrawalId') withdrawalId: string) {
     return this.auditLogService.getWithdrawalAuditLogs(withdrawalId);
   }
 
-  /**
-   * Get all audit logs (for financial reports)
-   * GET /admin/audit-logs?skip=0&take=50
-   */
   @UseGuards(AdminAuthGuard)
   @Get('admin/audit-logs')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get paginated audit logs for financial reporting' })
+  @ApiResponse({ status: 200, description: 'Audit logs' })
   async getAllAuditLogs(@Req() req) {
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 50;
     return this.auditLogService.getAllAuditLogs(skip, take);
   }
 
-  /**
-   * Get audit logs by action
-   * GET /admin/audit-logs/action/:action?skip=0&take=50
-   */
   @UseGuards(AdminAuthGuard)
   @Get('admin/audit-logs/action/:action')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get audit logs filtered by action' })
+  @ApiParam({ name: 'action', description: 'Action type' })
+  @ApiResponse({ status: 200, description: 'Action audit logs' })
   async getAuditLogsByAction(@Req() req, @Param('action') action: string) {
     const skip = parseInt(req.query.skip) || 0;
     const take = parseInt(req.query.take) || 50;
     return this.auditLogService.getLogsByAction(action as any, skip, take);
   }
 
-  /**
-   * Get withdrawal summary for financial reports
-   * GET /admin/financials/withdrawal-summary
-   */
   @UseGuards(AdminAuthGuard)
   @Get('admin/financials/withdrawal-summary')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get financial withdrawal summary' })
+  @ApiResponse({ status: 200, description: 'Withdrawal summary' })
   async getFinancialSummary() {
     return this.walletService.getFinancialSummary();
   }
 
-  /**
-   * Get financial reports by date range
-   * GET /admin/financials/reports?startDate=2024-01-01&endDate=2024-12-31
-   */
   @UseGuards(AdminAuthGuard)
   @Get('admin/financials/reports')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get financial reports by date range' })
+  @ApiQuery({ name: 'startDate', example: '2024-01-01' })
+  @ApiQuery({ name: 'endDate', example: '2024-12-31' })
+  @ApiResponse({ status: 200, description: 'Financial report' })
   async getFinancialReports(@Req() req) {
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) {
@@ -301,26 +337,24 @@ export class WalletController {
   // PAYSTACK WEBHOOK ENDPOINT
   // ========================================
 
-  /**
-   * Handle Paystack webhook callbacks
-   * POST /wallet/webhook/paystack
-   *
-   * Must verify signature using X-Paystack-Signature header
-   */
   @Post('webhook/paystack')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Paystack transfer webhook callback' })
+  @ApiHeader({
+    name: 'x-paystack-signature',
+    description: 'Paystack HMAC signature',
+  })
+  @ApiResponse({ status: 200, description: 'Webhook processed' })
   async handlePaystackWebhook(
     @Req() req,
     @Headers('x-paystack-signature') signature: string,
   ) {
-    // Get raw body for signature verification
     const rawBody = JSON.stringify(req.body);
 
     if (!signature) {
       throw new BadRequestException('Missing Paystack signature');
     }
 
-    // Verify webhook signature
     const isValid = this.paystackService.verifyWebhookSignature(
       rawBody,
       signature,
@@ -330,28 +364,26 @@ export class WalletController {
       throw new BadRequestException('Invalid Paystack signature');
     }
 
-    // Process the webhook
     await this.withdrawalQueueService.handlePaystackWebhookCallback(req.body);
 
     return { status: 'ok' };
   }
 
-  /**
-   * Manual retry for failed withdrawals
-   * POST /admin/withdrawals/retry
-   */
   @UseGuards(AdminAuthGuard)
   @Post('admin/withdrawals/retry')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Manual retry for all failed withdrawals' })
+  @ApiResponse({ status: 200, description: 'Retried failed withdrawals' })
   async retryFailedWithdrawals() {
     return this.withdrawalQueueService.retryFailedWithdrawals();
   }
 
-  /**
-   * Retry a specific failed withdrawal
-   * POST /admin/withdrawals/retry/:id
-   */
   @UseGuards(AdminAuthGuard)
   @Post('admin/withdrawals/retry/:id')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Retry a specific failed withdrawal' })
+  @ApiParam({ name: 'id', description: 'Withdrawal UUID' })
+  @ApiResponse({ status: 200, description: 'Withdrawal retry initiated' })
   async retrySingleWithdrawal(@Param('id') id: string) {
     return this.withdrawalQueueService.processWithdrawal({
       withdrawalId: id,

@@ -6,8 +6,15 @@ import { AgentProfile } from './entities/agent-profile.entity';
 import { CustomDesign } from '../customdesign/entities/customdesign.entity';
 import { CustomDesignStatus } from '../customdesign/customdesign.types';
 import { Wallet } from '../wallet/entities/wallet.entity';
-import { WalletTransaction, TransactionType, TransactionCategory } from '../wallet/entities/wallet-transaction.entity';
-import { WithdrawalRequest, WithdrawalStatus } from '../wallet/entities/withdrawal-request.entity';
+import {
+  WalletTransaction,
+  TransactionType,
+  TransactionCategory,
+} from '../wallet/entities/wallet-transaction.entity';
+import {
+  WithdrawalRequest,
+  WithdrawalStatus,
+} from '../wallet/entities/withdrawal-request.entity';
 import { Notification } from '../notification/entities/notification.entity';
 
 @Injectable()
@@ -25,7 +32,7 @@ export class AgentAnalyticsService {
     private readonly withdrawalRepository: Repository<WithdrawalRequest>,
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
-  ) { }
+  ) {}
 
   async getDashboardAnalytics(userId: string) {
     const agent = await this.agentRepository.findOne({
@@ -44,29 +51,42 @@ export class AgentAnalyticsService {
       where: { agentId },
     });
 
-    const activeProjects = allProjects.filter(p => 
-      [CustomDesignStatus.UNDER_REVIEW, CustomDesignStatus.APPROVED].includes(p.status)
+    const activeProjects = allProjects.filter((p) =>
+      [CustomDesignStatus.UNDER_REVIEW, CustomDesignStatus.APPROVED].includes(
+        p.status,
+      ),
     ).length;
 
-    const pendingTasks = allProjects.filter(p => 
-      p.status === CustomDesignStatus.SUBMITTED
+    const pendingTasks = allProjects.filter(
+      (p) => p.status === CustomDesignStatus.SUBMITTED,
     ).length;
 
     // 2. Project Status Distribution
     const projectStatusDistribution = {
-      inProgress: allProjects.filter(p => p.status === CustomDesignStatus.APPROVED).length, // mapping 'approved' as in-progress for the UI
-      revisionsNeeded: allProjects.filter(p => p.status === CustomDesignStatus.UNDER_REVIEW).length,
-      completed: allProjects.filter(p => p.status === CustomDesignStatus.COMPLETED).length,
-      cancelled: allProjects.filter(p => p.status === CustomDesignStatus.REJECTED).length,
+      inProgress: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.APPROVED,
+      ).length, // mapping 'approved' as in-progress for the UI
+      revisionsNeeded: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.UNDER_REVIEW,
+      ).length,
+      completed: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.COMPLETED,
+      ).length,
+      cancelled: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.REJECTED,
+      ).length,
     };
 
     // 3. Earnings & Payout
     const earnings = agent.wallet ? Number(agent.wallet.lifetimeEarnings) : 0;
-    
+
     const approvedWithdrawals = await this.withdrawalRepository.find({
       where: { agentId, status: WithdrawalStatus.APPROVED },
     });
-    const totalPayout = approvedWithdrawals.reduce((sum, req) => sum + Number(req.amount), 0);
+    const totalPayout = approvedWithdrawals.reduce(
+      (sum, req) => sum + Number(req.amount),
+      0,
+    );
 
     // 4. Portfolio Engagement
     const engagement = {
@@ -79,7 +99,7 @@ export class AgentAnalyticsService {
     // 5. Revenue Chart (Last 6 months)
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    
+
     const credits = await this.transactionRepository.find({
       where: {
         wallet: { agent: { id: agentId } },
@@ -88,14 +108,20 @@ export class AgentAnalyticsService {
       },
     });
 
-    const monthlyRevenue = Array.from({ length: 6 }).map((_, i) => {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthName = date.toLocaleString('default', { month: 'short' });
-      const total = credits
-        .filter(c => c.createdAt.getMonth() === date.getMonth() && c.createdAt.getFullYear() === date.getFullYear())
-        .reduce((sum, c) => sum + Number(c.amount), 0);
-      return { month: monthName, revenue: total };
-    }).reverse();
+    const monthlyRevenue = Array.from({ length: 6 })
+      .map((_, i) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = date.toLocaleString('default', { month: 'short' });
+        const total = credits
+          .filter(
+            (c) =>
+              c.createdAt.getMonth() === date.getMonth() &&
+              c.createdAt.getFullYear() === date.getFullYear(),
+          )
+          .reduce((sum, c) => sum + Number(c.amount), 0);
+        return { month: monthName, revenue: total };
+      })
+      .reverse();
 
     // 6. Recent Notifications
     const notifications = await this.notificationRepository.find({
@@ -119,7 +145,7 @@ export class AgentAnalyticsService {
         totalViews: engagement.views,
         totalSaves: engagement.saves,
         totalInquiries: engagement.inquiries,
-      }
+      },
     };
   }
 
@@ -139,10 +165,18 @@ export class AgentAnalyticsService {
     });
 
     return {
-      totalNewProjects: allProjects.filter(p => p.status === CustomDesignStatus.SUBMITTED).length,
-      totalInProgressProjects: allProjects.filter(p => p.status === CustomDesignStatus.APPROVED).length,
-      totalRevisionProjects: allProjects.filter(p => p.status === CustomDesignStatus.REVISION).length,
-      totalCompletedProjects: allProjects.filter(p => p.status === CustomDesignStatus.COMPLETED).length,
+      totalNewProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.SUBMITTED,
+      ).length,
+      totalInProgressProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.APPROVED,
+      ).length,
+      totalRevisionProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.REVISION,
+      ).length,
+      totalCompletedProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.COMPLETED,
+      ).length,
     };
   }
 
@@ -164,10 +198,18 @@ export class AgentAnalyticsService {
     });
 
     return {
-      newProjects: allProjects.filter(p => p.status === CustomDesignStatus.SUBMITTED),
-      inProgressProjects: allProjects.filter(p => p.status === CustomDesignStatus.APPROVED),
-      revisionProjects: allProjects.filter(p => p.status === CustomDesignStatus.REVISION),
-      completedProjects: allProjects.filter(p => p.status === CustomDesignStatus.COMPLETED),
+      newProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.SUBMITTED,
+      ),
+      inProgressProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.APPROVED,
+      ),
+      revisionProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.REVISION,
+      ),
+      completedProjects: allProjects.filter(
+        (p) => p.status === CustomDesignStatus.COMPLETED,
+      ),
     };
   }
 }

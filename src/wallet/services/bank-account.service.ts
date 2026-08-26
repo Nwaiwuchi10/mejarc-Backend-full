@@ -292,12 +292,19 @@ export class BankAccountService {
 
   // === Wrapper methods for Controller (using userId) ===
 
-  async registerBankAccountByUserId(userId: string, registerDto: RegisterBankAccountDto): Promise<BankAccount> {
+  async registerBankAccountByUserId(
+    userId: string,
+    registerDto: RegisterBankAccountDto,
+  ): Promise<BankAccount> {
     const agentId = await this.getAgentIdByUserId(userId);
     return this.registerBankAccount(agentId, registerDto);
   }
 
-  async verifyBankAccountByUserId(userId: string, bankAccountId: string, verifyDto: VerifyBankAccountDto): Promise<BankAccount> {
+  async verifyBankAccountByUserId(
+    userId: string,
+    bankAccountId: string,
+    verifyDto: VerifyBankAccountDto,
+  ): Promise<BankAccount> {
     const agentId = await this.getAgentIdByUserId(userId);
     return this.verifyBankAccount(agentId, bankAccountId, verifyDto);
   }
@@ -307,12 +314,18 @@ export class BankAccountService {
     return this.getBankAccounts(agentId);
   }
 
-  async setDefaultBankAccountByUserId(userId: string, bankAccountId: string): Promise<BankAccount> {
+  async setDefaultBankAccountByUserId(
+    userId: string,
+    bankAccountId: string,
+  ): Promise<BankAccount> {
     const agentId = await this.getAgentIdByUserId(userId);
     return this.setDefaultBankAccount(agentId, bankAccountId);
   }
 
-  async deleteBankAccountByUserId(userId: string, bankAccountId: string): Promise<void> {
+  async deleteBankAccountByUserId(
+    userId: string,
+    bankAccountId: string,
+  ): Promise<void> {
     const agentId = await this.getAgentIdByUserId(userId);
     return this.deleteBankAccount(agentId, bankAccountId);
   }

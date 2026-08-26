@@ -35,7 +35,7 @@ export class UserService {
     private readonly settingsRepo: Repository<UserNotificationSetting>,
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   async create(dto: CreateUserDto, file?: Express.Multer.File) {
     return this.dataSource.transaction(async (manager) => {
@@ -113,7 +113,9 @@ export class UserService {
    * Validates credentials and sends verification token to email
    */
   async initiateLogin(loginDto: LoginRequestDto) {
-    const cleanEmail = loginDto.email ? loginDto.email.trim().toLowerCase() : '';
+    const cleanEmail = loginDto.email
+      ? loginDto.email.trim().toLowerCase()
+      : '';
     const user = await this.userRepo.findOne({
       where: { email: cleanEmail },
     });
@@ -238,7 +240,7 @@ export class UserService {
     const agentRecord = await this.agentRepo.findOne({
       where: { userId: updatedUser.id },
     });
-    
+
     const isAgent = !!agentRecord;
     let isAgentApproved = false;
 
@@ -248,13 +250,14 @@ export class UserService {
           `Your agent account has been rejected. Reason: ${agentRecord.rejectionReason || 'Contact support'}.`,
         );
       }
-      isAgentApproved = agentRecord.registrationStatus === AgentRegistrationStatus.APPROVED;
+      isAgentApproved =
+        agentRecord.registrationStatus === AgentRegistrationStatus.APPROVED;
     }
 
     // === Send login success email ===
     try {
       await this.mailService.staffLoginMail(updatedUser);
-    } catch (_) { }
+    } catch (_) {}
 
     // === Return safe user data (without password) ===
     const { password, ...userDataWithoutPassword } = updatedUser;
@@ -266,24 +269,26 @@ export class UserService {
     });
 
     // Also issue agent token ONLY if user is an APPROVED agent
-    const agentToken = (isAgent && isAgentApproved)
-      ? this.jwtService.sign({
-        userId: updatedUser.id,
-        agentId: agentRecord!.id,
-        role: 'agent',
-      })
-      : undefined;
+    const agentToken =
+      isAgent && isAgentApproved
+        ? this.jwtService.sign({
+            userId: updatedUser.id,
+            agentId: agentRecord.id,
+            role: 'agent',
+          })
+        : undefined;
 
     return {
       success: true,
-      message: isAgent && !isAgentApproved
-        ? 'Login successful as user. Agent features are awaiting approval.'
-        : 'Login successful',
+      message:
+        isAgent && !isAgentApproved
+          ? 'Login successful as user. Agent features are awaiting approval.'
+          : 'Login successful',
       isAgent,
       isAgentApproved,
       userId: updatedUser.id,
       agentId: agentRecord?.id,
-      role: (isAgent && isAgentApproved) ? 'agent' : 'user',
+      role: isAgent && isAgentApproved ? 'agent' : 'user',
       user: userDataWithoutPassword,
       userToken,
       ...(agentToken && { agentToken }),
@@ -350,7 +355,8 @@ export class UserService {
 
     // === Sync the full name if names were updated ===
     if (dto.firstName || dto.lastName) {
-      user.name = `${user.firstName || user.lastName ? (user.firstName || '') + ' ' + (user.lastName || '') : user.name}`.trim();
+      user.name =
+        `${user.firstName || user.lastName ? (user.firstName || '') + ' ' + (user.lastName || '') : user.name}`.trim();
     }
 
     return this.userRepo.save(user);

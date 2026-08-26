@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
@@ -13,7 +17,7 @@ export class NotificationService {
     private readonly notificationRepo: Repository<Notification>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-  ) { }
+  ) {}
 
   async createNotification(
     userId: string,
@@ -41,10 +45,13 @@ export class NotificationService {
     // Default mapping if settingKey is not provided
     if (settings && !settingKey) {
       if (type === NotificationType.ADMIN && !settings.messagesAdmin) return;
-      if (type === NotificationType.AGENT_MESSAGE && !settings.messagesAgent) return;
-      if (type === NotificationType.ORDER && !settings.paymentOrderConfirmation) return;
+      if (type === NotificationType.AGENT_MESSAGE && !settings.messagesAgent)
+        return;
+      if (type === NotificationType.ORDER && !settings.paymentOrderConfirmation)
+        return;
       if (
-        (type === NotificationType.PRODUCTPAYMENT || type === NotificationType.CUSTOMDESIGNPAYMENT) &&
+        (type === NotificationType.PRODUCTPAYMENT ||
+          type === NotificationType.CUSTOMDESIGNPAYMENT) &&
         !settings.paymentSuccessful
       )
         return;
@@ -76,7 +83,8 @@ export class NotificationService {
     const notification = await this.notificationRepo.findOne({
       where: { id: notificationId, userId },
     });
-    if (!notification) throw new NotFoundException('Notification not found or access denied');
+    if (!notification)
+      throw new NotFoundException('Notification not found or access denied');
     notification.isRead = true;
     return this.notificationRepo.save(notification);
   }
@@ -98,7 +106,10 @@ export class NotificationService {
   }
 
   async markAllAsRead(userId: string) {
-    await this.notificationRepo.update({ userId, isRead: false }, { isRead: true });
+    await this.notificationRepo.update(
+      { userId, isRead: false },
+      { isRead: true },
+    );
     return { message: 'All notifications marked as read' };
   }
 

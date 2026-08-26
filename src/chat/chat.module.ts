@@ -17,7 +17,15 @@ import { forwardRef } from '@nestjs/common';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Conversation, Message, ConversationMember, User, Admin, Agent, CustomDesign]),
+    TypeOrmModule.forFeature([
+      Conversation,
+      Message,
+      ConversationMember,
+      User,
+      Admin,
+      Agent,
+      CustomDesign,
+    ]),
     NotificationModule,
     forwardRef(() => CustomDesignModule),
   ],
@@ -25,4 +33,4 @@ import { forwardRef } from '@nestjs/common';
   providers: [ChatService, ChatGateway],
   exports: [ChatService],
 })
-export class ChatModule { }
+export class ChatModule {}

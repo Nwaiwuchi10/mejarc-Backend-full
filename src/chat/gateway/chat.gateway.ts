@@ -50,12 +50,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Join a private room for this user
       client.join(`user:${userId}`);
       this.logger.log(`User connected: ${userId} (Socket: ${client.id})`);
-      
+
       // Optionally send initial unread count
       const inbox = await this.chatService.getInbox(userId);
-      const totalUnread = inbox.reduce((sum, item) => sum + item.unreadCount, 0);
+      const totalUnread = inbox.reduce(
+        (sum, item) => sum + item.unreadCount,
+        0,
+      );
       client.emit('chat:unreadCount', { total: totalUnread });
-
     } catch (e) {
       this.logger.error(`Connection error: ${e.message}`);
       client.disconnect();
@@ -93,9 +95,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Also updates their unread counts.
    */
   async emitNewMessage(message: Message, conversationId: string) {
-    const conversation = await this.chatService.getConversationDetails(
-      conversationId,
-    );
+    const conversation =
+      await this.chatService.getConversationDetails(conversationId);
 
     const payload = {
       id: message.id,
@@ -156,11 +157,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       await this.chatService.markAsRead(data.conversationId, userId);
-      
+
       const inbox = await this.chatService.getInbox(userId);
-      const totalUnread = inbox.reduce((sum, item) => sum + item.unreadCount, 0);
+      const totalUnread = inbox.reduce(
+        (sum, item) => sum + item.unreadCount,
+        0,
+      );
       client.emit('chat:unreadCount', { total: totalUnread });
-      
     } catch (e) {
       this.logger.error(`Mark as read error: ${e.message}`);
     }
@@ -168,7 +171,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private extractToken(client: Socket): string | undefined {
     // Check handshake auth or headers
-    const auth = client.handshake.auth?.token || client.handshake.headers?.authorization;
+    const auth =
+      client.handshake.auth?.token || client.handshake.headers?.authorization;
     if (!auth) return undefined;
     return auth.startsWith('Bearer ') ? auth.split(' ')[1] : auth;
   }

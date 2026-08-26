@@ -1,103 +1,103 @@
 import {
-    IsString,
-    IsEnum,
-    IsNumber,
-    IsOptional,
-    IsArray,
-    IsDecimal,
+  IsString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  IsDecimal,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-    ProductCategory,
-    PlanType,
-    FileTypeOption,
-    MarketProductStatus,
+  ProductCategory,
+  PlanType,
+  FileTypeOption,
+  MarketProductStatus,
 } from '../entities/marketproduct.entity';
 
 export class CreateMarketproductDto {
-    @IsString()
-    title: string;
+  @IsString()
+  title: string;
 
-    @IsEnum(ProductCategory)
-    category: ProductCategory;
+  @IsEnum(ProductCategory)
+  category: ProductCategory;
 
-    @IsEnum(PlanType)
-    planType: PlanType;
+  @IsEnum(PlanType)
+  planType: PlanType;
 
-    @IsString()
-    @IsOptional()
-    numBedrooms?: string;
+  @IsString()
+  @IsOptional()
+  numBedrooms?: string;
 
-    @IsString()
-    @IsOptional()
-    numBathrooms?: string;
+  @IsString()
+  @IsOptional()
+  numBathrooms?: string;
 
-    @IsString()
-    @IsOptional()
-    numFloors?: string;
+  @IsString()
+  @IsOptional()
+  numFloors?: string;
 
-    @IsString()
-    @IsOptional()
-    area?: string;
+  @IsString()
+  @IsOptional()
+  area?: string;
 
-    @IsNumber()
-    @Type(() => Number)
-    price: number;
+  @IsNumber()
+  @Type(() => Number)
+  price: number;
 
-    @IsString()
-    description: string;
+  @IsString()
+  description: string;
 
-    @IsEnum(FileTypeOption)
-    fileType: FileTypeOption;
+  @IsEnum(FileTypeOption)
+  fileType: FileTypeOption;
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    drawingSet?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  drawingSet?: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    addOns?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  addOns?: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    productImage?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  productImage?: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    architecturalPlan?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  architecturalPlan?: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    structuralPlan?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  structuralPlan?: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    electricalPlan?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  electricalPlan?: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    mechanicalPlan?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  mechanicalPlan?: string[];
 
-    @IsString()
-    @IsOptional()
-    architecturalPlanFileType?: string;
+  @IsString()
+  @IsOptional()
+  architecturalPlanFileType?: string;
 
-    @IsString()
-    @IsOptional()
-    structuralPlanFileType?: string;
+  @IsString()
+  @IsOptional()
+  structuralPlanFileType?: string;
 
-    @IsString()
-    @IsOptional()
-    electricalPlanFileType?: string;
+  @IsString()
+  @IsOptional()
+  electricalPlanFileType?: string;
 
-    @IsString()
-    @IsOptional()
-    mechanicalPlanFileType?: string;
+  @IsString()
+  @IsOptional()
+  mechanicalPlanFileType?: string;
 }

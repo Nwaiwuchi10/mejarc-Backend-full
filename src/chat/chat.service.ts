@@ -94,8 +94,10 @@ export class ChatService {
 
     await this.memberRepo.save([member1, member2]);
 
-    const conversationDetails = await this.getConversationDetails(savedConversation.id);
-    
+    const conversationDetails = await this.getConversationDetails(
+      savedConversation.id,
+    );
+
     // Notify participants about the new conversation
     this.chatGateway.emitNewConversation(conversationDetails);
 
@@ -105,12 +107,15 @@ export class ChatService {
   /**
    * Starts or retrieves a conversation for a specific custom design.
    */
-  async startCustomDesignChat(userId: string, customdesignId: string): Promise<Conversation> {
+  async startCustomDesignChat(
+    userId: string,
+    customdesignId: string,
+  ): Promise<Conversation> {
     // Check if conversation already exists for this design
     const existing = await this.conversationRepo.findOne({
-      where: { 
+      where: {
         type: ConversationType.CUSTOMDESIGN,
-        customdesignId: customdesignId 
+        customdesignId: customdesignId,
       },
     });
 
@@ -124,16 +129,24 @@ export class ChatService {
     });
 
     if (!customDesign) {
-      throw new NotFoundException(`Custom design with ID ${customdesignId} not found`);
+      throw new NotFoundException(
+        `Custom design with ID ${customdesignId} not found`,
+      );
     }
 
     // Security check: Only the owner, the assigned agent, or an admin can access/start this chat
     const isAdmin = await this.adminRepo.findOne({ where: { userId } });
     const isOwner = customDesign.userId === userId;
-    const isAgent = customDesign.agentId && (await this.agentRepo.findOne({ where: { id: customDesign.agentId, userId } }));
+    const isAgent =
+      customDesign.agentId &&
+      (await this.agentRepo.findOne({
+        where: { id: customDesign.agentId, userId },
+      }));
 
     if (!isAdmin && !isOwner && !isAgent) {
-      throw new BadRequestException('You do not have permission to access this chat');
+      throw new BadRequestException(
+        'You do not have permission to access this chat',
+      );
     }
 
     // Create new conversation
@@ -145,27 +158,35 @@ export class ChatService {
 
     // Add members: the user who owns the design
     const members: ConversationMember[] = [];
-    members.push(this.memberRepo.create({
-      conversation: savedConversation,
-      user: { id: customDesign.userId } as User,
-    }));
+    members.push(
+      this.memberRepo.create({
+        conversation: savedConversation,
+        user: { id: customDesign.userId } as User,
+      }),
+    );
 
     // If an agent is assigned, add them too
     if (customDesign.agentId) {
       // Find the agent's userId
-      const agent = await this.agentRepo.findOne({ where: { id: customDesign.agentId } });
+      const agent = await this.agentRepo.findOne({
+        where: { id: customDesign.agentId },
+      });
       if (agent && agent.userId) {
-        members.push(this.memberRepo.create({
-          conversation: savedConversation,
-          user: { id: agent.userId } as User,
-        }));
+        members.push(
+          this.memberRepo.create({
+            conversation: savedConversation,
+            user: { id: agent.userId } as User,
+          }),
+        );
       }
     }
 
     await this.memberRepo.save(members);
 
-    const conversationDetails = await this.getConversationDetails(savedConversation.id);
-    
+    const conversationDetails = await this.getConversationDetails(
+      savedConversation.id,
+    );
+
     // Notify participants
     this.chatGateway.emitNewConversation(conversationDetails);
 
@@ -175,17 +196,21 @@ export class ChatService {
   /**
    * Retrieves a conversation by its custom design ID.
    */
-  async getConversationByCustomDesignId(customdesignId: string): Promise<Conversation> {
+  async getConversationByCustomDesignId(
+    customdesignId: string,
+  ): Promise<Conversation> {
     const conversation = await this.conversationRepo.findOne({
-      where: { 
+      where: {
         type: ConversationType.CUSTOMDESIGN,
-        customdesignId: customdesignId 
+        customdesignId: customdesignId,
       },
       relations: ['members', 'members.user', 'lastMessage'],
     });
 
     if (!conversation) {
-      throw new NotFoundException(`No conversation found for custom design ID ${customdesignId}`);
+      throw new NotFoundException(
+        `No conversation found for custom design ID ${customdesignId}`,
+      );
     }
 
     return conversation;
@@ -212,7 +237,9 @@ export class ChatService {
     // Verify membership
     const isMember = conversation.members.some((m) => m.user.id === authorId);
     if (!isMember) {
-      throw new BadRequestException('User is not a member of this conversation');
+      throw new BadRequestException(
+        'User is not a member of this conversation',
+      );
     }
 
     // Create message
@@ -242,27 +269,45 @@ export class ChatService {
     this.chatGateway.emitNewMessage(savedMessage, conversationId);
 
     // Notify via Persistent Notification (for Admin/Agent messages)
-    const authorAdmin = await this.adminRepo.findOne({ where: { userId: authorId } });
-    const authorAgent = await this.agentRepo.findOne({ where: { userId: authorId } });
+    const authorAdmin = await this.adminRepo.findOne({
+      where: { userId: authorId },
+    });
+    const authorAgent = await this.agentRepo.findOne({
+      where: { userId: authorId },
+    });
 
     if (authorAdmin || authorAgent) {
-      const otherMembers = conversation.members.filter((m) => m.user?.id !== authorId);
+      const otherMembers = conversation.members.filter(
+        (m) => m.user?.id !== authorId,
+      );
       for (const member of otherMembers) {
         if (!member.user) continue;
         await this.notificationService.createNotification(
           member.user.id,
-          (authorAdmin ? NotificationType.ADMIN : NotificationType.AGENT_MESSAGE) as NotificationType,
+          (authorAdmin
+            ? NotificationType.ADMIN
+            : NotificationType.AGENT_MESSAGE) as NotificationType,
           `New Message from ${authorAdmin ? 'Admin' : 'Agent'}`,
-          (text || '').substring(0, 100) + ((text || '').length > 100 ? '...' : ''),
+          (text || '').substring(0, 100) +
+            ((text || '').length > 100 ? '...' : ''),
           { conversationId, messageId: savedMessage.id },
-          (authorAdmin ? 'messagesAdmin' : 'messagesAgent') as keyof UserNotificationSetting,
+          (authorAdmin
+            ? 'messagesAdmin'
+            : 'messagesAgent') as keyof UserNotificationSetting,
         );
       }
     }
 
     // Log Activity for Custom Design Workspace
-    if (conversation.type === ConversationType.CUSTOMDESIGN && conversation.customdesignId) {
-      const authorType = authorAdmin ? 'Admin' : (authorAgent ? 'Agent' : 'Client');
+    if (
+      conversation.type === ConversationType.CUSTOMDESIGN &&
+      conversation.customdesignId
+    ) {
+      const authorType = authorAdmin
+        ? 'Admin'
+        : authorAgent
+          ? 'Agent'
+          : 'Client';
       await this.workspaceService.logActivity(
         conversation.customdesignId,
         authorId,
@@ -298,20 +343,24 @@ export class ChatService {
     return memberships.map((m) => {
       const conv = m.conversation;
       // Identify the other participant in a DM
-      const otherParticipant = conv.members.find((member) => member.user.id !== userId)?.user;
-      
+      const otherParticipant = conv.members.find(
+        (member) => member.user.id !== userId,
+      )?.user;
+
       return {
         id: conv.id,
         type: conv.type,
         lastMessage: conv.lastMessage,
         lastMessageAt: conv.lastMessageAt,
         unreadCount: m.unreadCount,
-        otherParticipant: otherParticipant ? {
-          id: otherParticipant.id,
-          firstName: otherParticipant.firstName,
-          lastName: otherParticipant.lastName,
-          profilePics: otherParticipant.profilePics,
-        } : null,
+        otherParticipant: otherParticipant
+          ? {
+              id: otherParticipant.id,
+              firstName: otherParticipant.firstName,
+              lastName: otherParticipant.lastName,
+              profilePics: otherParticipant.profilePics,
+            }
+          : null,
       };
     });
   }
@@ -332,7 +381,9 @@ export class ChatService {
       where: { conversation: { id: conversationId }, user: { id: userId } },
     });
     if (!member) {
-      throw new BadRequestException('User is not a member of this conversation');
+      throw new BadRequestException(
+        'User is not a member of this conversation',
+      );
     }
 
     const [data, total] = await this.messageRepo.findAndCount({

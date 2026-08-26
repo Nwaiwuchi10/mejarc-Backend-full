@@ -28,9 +28,8 @@ export class CreateAgentProfileDto {
   /**
    * Required when preferredTitle is 'Architect' or 'Structural Engineer'.
    */
-  @ValidateIf(
-    (o) =>
-      TITLES_REQUIRING_LICENSE.includes(o.preferredTitle as ProfessionalTitle),
+  @ValidateIf((o) =>
+    TITLES_REQUIRING_LICENSE.includes(o.preferredTitle as ProfessionalTitle),
   )
   @IsNotEmpty({ message: 'licenseNumber is required for your selected title' })
   @IsString()

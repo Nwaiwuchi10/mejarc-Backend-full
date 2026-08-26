@@ -43,7 +43,12 @@ import { NotificationModule } from '../notification/notification.module';
     NotificationModule,
   ],
   controllers: [AgentController],
-  providers: [AgentService, UverifyKycProvider, AgentMailService, AgentAnalyticsService],
+  providers: [
+    AgentService,
+    UverifyKycProvider,
+    AgentMailService,
+    AgentAnalyticsService,
+  ],
   exports: [AgentService, AgentMailService, AgentAnalyticsService],
 })
 export class AgentModule {}

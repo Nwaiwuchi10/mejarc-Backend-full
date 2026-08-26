@@ -16,7 +16,15 @@ import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Admin, User, Agent, Order, MarketProduct, Conversation, Message]),
+    TypeOrmModule.forFeature([
+      Admin,
+      User,
+      Agent,
+      Order,
+      MarketProduct,
+      Conversation,
+      Message,
+    ]),
     AgentModule,
     UserModule,
     forwardRef(() => WalletModule),
@@ -25,4 +33,4 @@ import { UserModule } from '../user/user.module';
   controllers: [AdminController],
   exports: [AdminService, AdminAuthGuard],
 })
-export class AdminModule { }
+export class AdminModule {}
