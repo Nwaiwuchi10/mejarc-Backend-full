@@ -55,7 +55,7 @@ export class OrderService {
     private readonly paystackService: PaystackService,
     private mailService: MailService,
     private readonly notificationService: NotificationService,
-  ) {}
+  ) { }
 
   async createOrder(createOrderDTO: CreateOrderDto, userId?: string) {
     const {
@@ -720,7 +720,6 @@ export class OrderService {
               Key: `Order/${fileName}`,
               Body: buffer,
               ContentType: matches[1],
-              ACL: 'public-read',
             });
             await s3Client!.send(command);
             PicsUrl = `https://${AWS_S3_BUCKET_NAME}.s3.amazonaws.com/Order/${fileName}`;
@@ -815,7 +814,6 @@ export class OrderService {
           Key: `Order/${fileName}`,
           Body: file.buffer,
           ContentType: file.mimetype,
-          ACL: 'public-read',
         });
         if (s3Client) {
           await s3Client.send(command);

@@ -14,12 +14,12 @@ const hasS3Credentials = !!(
 
 export const s3Client = hasS3Credentials
   ? new S3Client({
-      region: process.env.AWS_REGION as string,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
-      },
-    })
+    region: process.env.AWS_REGION as string,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+    },
+  })
   : null;
 
 export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || '';
@@ -57,7 +57,6 @@ export function createS3Storage(keyPrefix: string) {
   return (multerS3 as any)({
     s3: s3Client as any,
     bucket: AWS_S3_BUCKET_NAME,
-    acl: 'public-read',
     contentType: (multerS3 as any).AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const sanitized = file.originalname

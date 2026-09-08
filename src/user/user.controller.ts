@@ -37,7 +37,7 @@ import * as multerS3 from 'multer-s3';
 @ApiTags('User')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Post()
   @ApiOperation({
@@ -75,7 +75,6 @@ export class UserController {
       storage: multerS3({
         s3: s3Client as any,
         bucket: AWS_S3_BUCKET_NAME,
-        acl: 'public-read',
         contentType: multerS3.AUTO_CONTENT_TYPE,
         key: (req, file, cb) => {
           const sanitized = file.originalname
@@ -257,7 +256,6 @@ export class UserController {
       storage: multerS3({
         s3: s3Client as any,
         bucket: AWS_S3_BUCKET_NAME,
-        acl: 'public-read',
         contentType: multerS3.AUTO_CONTENT_TYPE,
         key: (req, file, cb) => {
           const sanitized = file.originalname
