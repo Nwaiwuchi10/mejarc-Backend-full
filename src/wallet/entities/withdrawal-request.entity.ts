@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { Agent } from '../../agent/entities/agent.entity';
 
 export enum WithdrawalStatus {

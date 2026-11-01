@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from 'src/database/database.module';
 import { MarketproductService } from './marketproduct.service';
 import { MarketproductController } from './marketproduct.controller';
 import { MarketProduct } from './entities/marketproduct.entity';

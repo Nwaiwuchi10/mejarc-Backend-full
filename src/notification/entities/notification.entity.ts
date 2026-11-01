@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { User } from 'src/user/entities/user.entity';
 
 export enum NotificationType {

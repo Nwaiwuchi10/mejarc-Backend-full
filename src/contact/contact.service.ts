@@ -1,6 +1,7 @@
+import { NodemailerMailer } from "src/utils/nodemailer-mailer";
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository } from 'src/database/database.module';
 import { ContactInquiry } from './entities/contact.entity';
 import { CreateContactDto } from './dto/create-contact.dto';
 import * as SibApiV3Sdk from 'sib-api-v3-sdk';
@@ -18,7 +19,7 @@ export class ContactService {
     const apiKey = defaultClient.authentications['api-key'];
     apiKey.apiKey = process.env.BREVO_API_KEY;
 
-    this.brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
+    this.brevoClient = NodemailerMailer as any;
   }
 
   async create(dto: CreateContactDto) {

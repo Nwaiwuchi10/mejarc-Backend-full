@@ -3,8 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository } from 'src/database/database.module';
 import { Notification, NotificationType } from './entities/notification.entity';
 import { User } from '../user/entities/user.entity';
 import { UserNotificationSetting } from '../user/entities/user-notification-setting.entity';

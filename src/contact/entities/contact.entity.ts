@@ -3,7 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 
 @Entity('contact_inquiry')
 export class ContactInquiry {

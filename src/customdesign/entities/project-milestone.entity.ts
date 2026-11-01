@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { CustomDesign } from './customdesign.entity';
 import { MilestoneStatus } from '../customdesign.types';
 

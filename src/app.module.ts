@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { join } from 'path';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
+import './database/schemas';
 import { UserModule } from './user/user.module';
 import { AgentModule } from './agent/agent.module';
 import { AdminModule } from './admin/admin.module';
@@ -34,55 +34,19 @@ import config from './config/config';
       global: true,
       inject: [ConfigService],
     }),
-    TypeOrmModule.forRootAsync({
+    MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const databaseUrl = configService.get<string>('DATABASE_URL');
-        const dbHost = configService.get<string>('DB_HOST');
-        const dbPort = Number(configService.get<number>('DB_PORT') || 5432);
-        const dbUsername = configService.get<string>('DB_USERNAME');
-        const dbPassword =
-          configService.get<string>('DB_PASSWORD') ||
-          configService.get<string>('DB_PAASWORD');
-        const dbName = configService.get<string>('DB_NAME');
-        const dbSsl = configService.get<string>('DB_SSL');
-
-        const isRemote =
-          dbSsl === 'true' ||
-          (dbHost && dbHost !== 'localhost' && dbHost !== '127.0.0.1') ||
-          Boolean(databaseUrl);
-
-        const sslConfig = isRemote ? { rejectUnauthorized: false } : undefined;
-
-        if (databaseUrl) {
-          return {
-            type: 'postgres',
-            url: databaseUrl,
-            ssl: sslConfig,
-            extra: {
-              ssl: sslConfig,
-            },
-            autoLoadEntities: true,
-            entities: [join(__dirname, '**/*.entity{.ts,.js}')],
-            synchronize: true,
-          };
-        }
+        const uri =
+          configService.get<string>('MONGO_URI') ||
+          configService.get<string>('MONGODB_URI') ||
+          process.env.MONGO_URI ||
+          process.env.MONGODB_URI ||
+          'mongodb://localhost:27017/mejarc';
 
         return {
-          type: 'postgres',
-          host: dbHost || 'localhost',
-          port: dbPort,
-          username: dbUsername || 'postgres',
-          password: dbPassword || '',
-          database: dbName || 'mejarc',
-          ssl: sslConfig,
-          extra: {
-            ssl: sslConfig,
-          },
-          autoLoadEntities: true,
-          entities: [join(__dirname, '**/*.entity{.ts,.js}')],
-          synchronize: true,
+          uri,
         };
       },
     }),
@@ -94,7 +58,7 @@ import config from './config/config';
     WalletModule,
     CustomDesignModule,
     NotificationModule,
-    ChatModule, // RolesModule,
+    ChatModule,
     ContactModule,
   ],
   controllers: [AppController],

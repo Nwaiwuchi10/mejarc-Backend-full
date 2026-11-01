@@ -4,7 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 
 @Entity('system_settings')
 export class SystemSetting {

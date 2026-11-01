@@ -6,7 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { User } from '../../user/entities/user.entity';
 import { MarketProduct } from './marketproduct.entity';
 

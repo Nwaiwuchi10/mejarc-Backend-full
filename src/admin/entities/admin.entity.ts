@@ -7,7 +7,7 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { User } from '../../user/entities/user.entity';
 
 @Entity('admins')

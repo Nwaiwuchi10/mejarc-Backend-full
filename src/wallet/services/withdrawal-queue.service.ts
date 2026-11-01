@@ -4,8 +4,8 @@ import {
   Logger,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository } from 'src/database/database.module';
 import {
   WithdrawalRequest,
   WithdrawalStatus,

@@ -3,8 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository } from 'src/database/database.module';
 import { Wallet } from './entities/wallet.entity';
 import {
   WalletTransaction,
@@ -118,7 +118,7 @@ export class WalletService {
   }
 
   async getWithdrawalSettings() {
-    let setting = await this.settingRepository.findOne({
+    let setting: any = await this.settingRepository.findOne({
       where: { key: 'WITHDRAWAL_SETTINGS' },
     });
 
@@ -151,7 +151,7 @@ export class WalletService {
     minWithdrawalAmount?: number;
     maxWithdrawalAmount?: number;
   }) {
-    let setting = await this.settingRepository.findOne({
+    let setting: any = await this.settingRepository.findOne({
       where: { key: 'WITHDRAWAL_SETTINGS' },
     });
 
@@ -627,7 +627,7 @@ export class WalletService {
       throw new NotFoundException('Agent not found');
     }
 
-    let wallet = agent.wallet;
+    let wallet: any = agent.wallet;
     if (!wallet) {
       wallet = this.walletRepository.create({
         agent,

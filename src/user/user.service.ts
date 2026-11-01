@@ -9,13 +9,13 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginRequestDto, VerifyLoginTokenDto } from './dto/login.dto';
 import { User } from './entities/user.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository } from 'src/database/database.module';
 import { UserAddress } from './entities/user-adress.entity';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from 'src/database/database.module';
 import { MailService } from './service/mail.service';
 import { Agent, AgentRegistrationStatus } from '../agent/entities/agent.entity';
 import { PaginationDto } from '../utils/pagination.dto';
-import { Like } from 'typeorm';
+import { Like } from 'src/database/database.module';
 import { UserNotificationSetting } from './entities/user-notification-setting.entity';
 import { UpdateNotificationSettingsDto } from './dto/notification-settings.dto';
 import * as bcrypt from 'bcryptjs';
@@ -349,6 +349,32 @@ export class UserService {
       }
     }
 
+    // === Check if this user is a registered Agent/Vendor ===
+    const agent = await this.agentRepo.findOne({ where: { userId: user.id } });
+    if (agent) {
+      const anyDto = dto as any;
+      const isNameChange =
+        (anyDto.firstName && anyDto.firstName !== user.firstName) ||
+        (anyDto.lastName && anyDto.lastName !== user.lastName);
+      const isEmailChange = anyDto.email && anyDto.email.trim().toLowerCase() !== user.email;
+
+      if (isNameChange || isEmailChange) {
+        agent.pendingProfileChange = {
+          pendingFirstName: anyDto.firstName || user.firstName,
+          pendingLastName: anyDto.lastName || user.lastName,
+          pendingEmail: anyDto.email ? anyDto.email.trim().toLowerCase() : user.email,
+          requestedAt: new Date(),
+          status: 'PENDING_ADMIN_APPROVAL',
+        };
+        await this.agentRepo.save(agent);
+
+        // Remove name and email from instant update payload so admin must approve
+        delete anyDto.firstName;
+        delete anyDto.lastName;
+        delete anyDto.email;
+      }
+    }
+
     // === Update basic fields ===
     const { address, ...basicInfo } = dto;
     Object.assign(user, basicInfo);
@@ -359,7 +385,15 @@ export class UserService {
         `${user.firstName || user.lastName ? (user.firstName || '') + ' ' + (user.lastName || '') : user.name}`.trim();
     }
 
-    return this.userRepo.save(user);
+    const saved = await this.userRepo.save(user);
+    if (agent && agent.pendingProfileChange?.status === 'PENDING_ADMIN_APPROVAL') {
+      return {
+        ...saved,
+        pendingApprovalNotice:
+          'Name or email change request submitted. An admin must review and approve this change before it takes effect.',
+      };
+    }
+    return saved;
   }
   async findAll(paginationDto: PaginationDto) {
     const { page = 1, limit = 10, search } = paginationDto;
@@ -462,7 +496,7 @@ export class UserService {
     userId: string,
     dto: UpdateNotificationSettingsDto,
   ) {
-    const settings = await this.getNotificationSettings(userId);
+    const settings: any = await this.getNotificationSettings(userId);
     Object.assign(settings, dto);
     return this.settingsRepo.save(settings);
   }

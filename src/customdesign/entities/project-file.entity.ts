@@ -5,7 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { CustomDesign } from './customdesign.entity';
 import { User } from '../../user/entities/user.entity';
 

@@ -7,7 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { Agent } from '../../agent/entities/agent.entity';
 import { Rating } from './rating.entity';
 
@@ -39,6 +39,9 @@ export enum MarketProductStatus {
 export class MarketProduct {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ nullable: true })
+  productId: string;
 
   @Column()
   title: string;

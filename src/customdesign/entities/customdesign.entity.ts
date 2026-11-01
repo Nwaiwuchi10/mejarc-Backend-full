@@ -15,7 +15,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { User } from '../../user/entities/user.entity';
 import { Agent } from '../../agent/entities/agent.entity';
 import { CustomDesignPayment } from './custom-design-payment.entity';
@@ -24,7 +24,7 @@ import {
   CustomDesignStatus,
   SelectionMethod,
 } from '../customdesign.types';
-import { OneToOne } from 'typeorm';
+import { OneToOne } from 'src/database/database.module';
 
 @Entity('custom_designs')
 export class CustomDesign {

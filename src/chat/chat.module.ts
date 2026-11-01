@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from 'src/database/database.module';
 import { Conversation } from './entities/conversation.entity';
 import { Message } from './entities/message.entity';
 import { ConversationMember } from './entities/conversation-member.entity';

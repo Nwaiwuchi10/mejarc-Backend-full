@@ -5,8 +5,8 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository, In } from 'src/database/database.module';
 import { Conversation, ConversationType } from './entities/conversation.entity';
 import { Message } from './entities/message.entity';
 import { ConversationMember } from './entities/conversation-member.entity';
@@ -44,7 +44,7 @@ export class ChatService {
     private readonly notificationService: NotificationService,
     @Inject(forwardRef(() => CustomDesignWorkspaceService))
     private readonly workspaceService: CustomDesignWorkspaceService,
-  ) {}
+  ) { }
 
   /**
    * Starts a direct message conversation between two users.
@@ -63,14 +63,15 @@ export class ChatService {
 
     // Try to find an existing DM between these two users.
     // DMs always have exactly 2 members.
-    const existing = await this.conversationRepo
-      .createQueryBuilder('conversation')
-      .innerJoin('conversation.members', 'm1')
-      .innerJoin('conversation.members', 'm2')
-      .where('conversation.type = :type', { type: ConversationType.DM })
-      .andWhere('m1.userId = :u1', { u1: user1Id })
-      .andWhere('m2.userId = :u2', { u2: user2Id })
-      .getOne();
+    const conversations = await this.conversationRepo.find({
+      where: { type: ConversationType.DM },
+      relations: ['members'],
+    });
+
+    const existing = conversations.find((c) => {
+      const uids = (c.members || []).map((m: any) => m.userId || m.user?.id);
+      return uids.includes(user1Id) && uids.includes(user2Id);
+    });
 
     if (existing) {
       return this.getConversationDetails(existing.id);
@@ -257,13 +258,16 @@ export class ChatService {
     await this.conversationRepo.save(conversation);
 
     // Increment unread count for other members
-    await this.memberRepo
-      .createQueryBuilder()
-      .update(ConversationMember)
-      .set({ unreadCount: () => 'unreadCount + 1' })
-      .where('conversationId = :cid', { cid: conversationId })
-      .andWhere('userId != :uid', { uid: authorId })
-      .execute();
+    const membersToUpdate = await this.memberRepo.find({
+      where: { conversationId },
+    });
+    for (const mem of membersToUpdate) {
+      const memUid = (mem as any).userId || (mem.user ? (mem.user as any).id : null);
+      if (memUid !== authorId) {
+        mem.unreadCount = (mem.unreadCount || 0) + 1;
+        await this.memberRepo.save(mem);
+      }
+    }
 
     // Notify via WebSocket
     this.chatGateway.emitNewMessage(savedMessage, conversationId);
@@ -289,7 +293,7 @@ export class ChatService {
             : NotificationType.AGENT_MESSAGE) as NotificationType,
           `New Message from ${authorAdmin ? 'Admin' : 'Agent'}`,
           (text || '').substring(0, 100) +
-            ((text || '').length > 100 ? '...' : ''),
+          ((text || '').length > 100 ? '...' : ''),
           { conversationId, messageId: savedMessage.id },
           (authorAdmin
             ? 'messagesAdmin'
@@ -337,7 +341,7 @@ export class ChatService {
         'conversation.members',
         'conversation.members.user',
       ],
-      order: { conversation: { lastMessageAt: 'DESC' } },
+      order: { updatedAt: 'DESC' } as any,
     });
 
     return memberships.map((m) => {
@@ -355,11 +359,11 @@ export class ChatService {
         unreadCount: m.unreadCount,
         otherParticipant: otherParticipant
           ? {
-              id: otherParticipant.id,
-              firstName: otherParticipant.firstName,
-              lastName: otherParticipant.lastName,
-              profilePics: otherParticipant.profilePics,
-            }
+            id: otherParticipant.id,
+            firstName: otherParticipant.firstName,
+            lastName: otherParticipant.lastName,
+            profilePics: otherParticipant.profilePics,
+          }
           : null,
       };
     });

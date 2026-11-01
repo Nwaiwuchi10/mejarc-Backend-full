@@ -3,8 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, Between, In } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository, Like, Between, In } from 'src/database/database.module';
 import { CreateMarketproductDto } from './dto/create-marketproduct.dto';
 import { UpdateMarketproductDto } from './dto/update-marketproduct.dto';
 import {
@@ -70,9 +70,23 @@ export class MarketproductService {
     const mechanicalPlan =
       files?.mechanicalPlan?.map((f: any) => f.location) || [];
 
-    // 3. Create Product entity
+    // 3. Generate human-readable Product ID based on Category:
+    // BLP (Building Plan), PRD (Product Design), BLG (Building Guide)
+    let prefix = 'BLP';
+    const cat = String(dto.category || '').toLowerCase();
+    if (cat.includes('product') || cat.includes('design') || cat.includes('interior')) {
+      prefix = 'PRD';
+    } else if (cat.includes('guide')) {
+      prefix = 'BLG';
+    }
+    const count = await this.productRepo.count();
+    const sequentialNum = String(count + 1).padStart(3, '0');
+    const customProductId = `${prefix}${sequentialNum}`;
+
+    // 4. Create Product entity
     const product = this.productRepo.create({
       ...dto,
+      productId: customProductId,
       agentId,
       agent,
       productImage,

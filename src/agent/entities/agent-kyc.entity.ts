@@ -6,7 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { Agent } from './agent.entity';
 
 export enum KycRecordStatus {

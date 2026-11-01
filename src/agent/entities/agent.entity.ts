@@ -10,7 +10,7 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   JoinColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { AgentProfile } from './agent-profile.entity';
 import { AgentBio } from './agent-bio.entity';
 import { AgentKyc } from './agent-kyc.entity';
@@ -58,7 +58,13 @@ export class Agent {
 
   // ===== LEGACY/BUSINESS FIELDS =====
   @Column({ nullable: true })
+  vendorId?: string;
+
+  @Column({ nullable: true })
   businessName?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  pendingProfileChange?: any;
 
   @Column({ type: 'simple-json', nullable: true })
   kycDocuments?: { key: string; url: string; name?: string }[];

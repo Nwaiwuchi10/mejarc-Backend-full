@@ -7,8 +7,8 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, MoreThanOrEqual, In, Between } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository, Like, MoreThanOrEqual, In, Between } from 'src/database/database.module';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -56,7 +56,7 @@ export class AdminService {
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => WalletService))
     private readonly walletService: WalletService,
-  ) {}
+  ) { }
 
   // ══════════════════════════════════════════
   // 1.  MAKE USER AN ADMIN
@@ -339,10 +339,13 @@ export class AdminService {
 
       return {
         id: agent.id,
+        vendorId: agent.vendorId || `VN${agent.id.slice(0, 4).toUpperCase()}`,
         name: agent.user
           ? `${agent.user.firstName} ${agent.user.lastName}`
           : agent.businessName || 'Agent',
         email: agent.user?.email || '',
+        businessName: agent.businessName || 'N/A',
+        pendingProfileChange: agent.pendingProfileChange ?? null,
         businessType: agent.profile?.preferredTitle || 'Building Designer',
         status: mappedStatus,
         createdAt: agent.createdAt,
@@ -429,16 +432,52 @@ export class AdminService {
       registrationStatus: AgentRegistrationStatus.APPROVED,
     } as any);
 
-    // try {
-    //   if (agent.user)
-    //     await this.agentMailService.sendAgentApprovalNotification(
-    //       agent.user as any,
-    //       agent as any,
-    //       true,
-    //     );
-    // } catch (e) {}
-
     return { success: true };
+  }
+
+  async approveVendorProfileChange(agentId: string) {
+    this.validateUUID(agentId, 'agent ID');
+    const agent = await this.agentRepo.findOne({
+      where: { id: agentId },
+      relations: ['user'],
+    });
+    if (!agent) throw new NotFoundException('Agent/Vendor not found');
+    if (!agent.pendingProfileChange || agent.pendingProfileChange.status !== 'PENDING_ADMIN_APPROVAL') {
+      throw new BadRequestException('No pending profile changes found for this vendor');
+    }
+
+    const { pendingFirstName, pendingLastName, pendingEmail } = agent.pendingProfileChange;
+    if (agent.user) {
+      if (pendingFirstName) agent.user.firstName = pendingFirstName;
+      if (pendingLastName) agent.user.lastName = pendingLastName;
+      if (pendingFirstName || pendingLastName) {
+        agent.user.name = `${agent.user.firstName} ${agent.user.lastName}`.trim();
+      }
+      if (pendingEmail) agent.user.email = pendingEmail;
+      await this.userRepo.save(agent.user);
+    }
+
+    agent.pendingProfileChange.status = 'APPROVED';
+    agent.pendingProfileChange.approvedAt = new Date();
+    await this.agentRepo.save(agent);
+
+    return { success: true, message: 'Vendor name/email change approved successfully' };
+  }
+
+  async rejectVendorProfileChange(agentId: string, reason?: string) {
+    this.validateUUID(agentId, 'agent ID');
+    const agent = await this.agentRepo.findOne({ where: { id: agentId } });
+    if (!agent) throw new NotFoundException('Agent/Vendor not found');
+    if (!agent.pendingProfileChange) {
+      throw new BadRequestException('No pending profile changes found');
+    }
+
+    agent.pendingProfileChange.status = 'REJECTED';
+    agent.pendingProfileChange.rejectedAt = new Date();
+    agent.pendingProfileChange.rejectionReason = reason || 'Admin rejected the modification';
+    await this.agentRepo.save(agent);
+
+    return { success: true, message: 'Vendor profile change rejected', reason };
   }
 
   async rejectAgent(agentId: string, reason?: string) {
@@ -459,7 +498,7 @@ export class AdminService {
           agent as any,
           false,
         );
-    } catch (e) {}
+    } catch (e) { }
 
     return { success: true };
   }
@@ -499,36 +538,36 @@ export class AdminService {
       // User info
       user: agent.user
         ? {
-            id: agent.user.id,
-            firstName: agent.user.firstName,
-            lastName: agent.user.lastName,
-            email: agent.user.email,
-            phoneNumber: agent.user.phoneNumber,
-          }
+          id: agent.user.id,
+          firstName: agent.user.firstName,
+          lastName: agent.user.lastName,
+          email: agent.user.email,
+          phoneNumber: agent.user.phoneNumber,
+        }
         : null,
       // Profile summary
       profile: agent.profile
         ? {
-            preferredTitle: agent.profile.preferredTitle,
-            licenseNumber: agent.profile.licenseNumber,
-            yearsOfExperience: agent.profile.yearsOfExperience,
-            specialization: agent.profile.specialization,
-            portfolioLink: agent.profile.portfolioLink,
-            profilePicture: agent.profile.profilePicture,
-          }
+          preferredTitle: agent.profile.preferredTitle,
+          licenseNumber: agent.profile.licenseNumber,
+          yearsOfExperience: agent.profile.yearsOfExperience,
+          specialization: agent.profile.specialization,
+          portfolioLink: agent.profile.portfolioLink,
+          profilePicture: agent.profile.profilePicture,
+        }
         : null,
       // Latest KYC summary
       latestKyc: latestKyc
         ? {
-            id: latestKyc.id,
-            status: latestKyc.status,
-            idType: latestKyc.idType,
-            idNumber: latestKyc.idNumber,
-            bankName: latestKyc.bankName,
-            accountNumber: latestKyc.accountNumber,
-            accountHolderName: latestKyc.accountHolderName,
-            submittedAt: latestKyc.createdAt,
-          }
+          id: latestKyc.id,
+          status: latestKyc.status,
+          idType: latestKyc.idType,
+          idNumber: latestKyc.idNumber,
+          bankName: latestKyc.bankName,
+          accountNumber: latestKyc.accountNumber,
+          accountHolderName: latestKyc.accountHolderName,
+          submittedAt: latestKyc.createdAt,
+        }
         : null,
     };
   }
@@ -536,6 +575,7 @@ export class AdminService {
   private formatAgentDetail(agent: Agent) {
     return {
       id: agent.id,
+      vendorId: agent.vendorId || `VN${agent.id.slice(0, 4).toUpperCase()}`,
       userId: agent.userId,
       registrationStatus: agent.registrationStatus,
       kycStatus: agent.kycStatus,
@@ -543,18 +583,19 @@ export class AdminService {
       approvedAt: agent.approvedAt,
       rejectionReason: agent.rejectionReason,
       businessName: agent.businessName,
+      pendingProfileChange: agent.pendingProfileChange ?? null,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,
       // Full user info
       user: agent.user
         ? {
-            id: agent.user.id,
-            firstName: agent.user.firstName,
-            lastName: agent.user.lastName,
-            email: agent.user.email,
-            phoneNumber: agent.user.phoneNumber,
-            profilePics: agent.user.profilePics,
-          }
+          id: agent.user.id,
+          firstName: agent.user.firstName,
+          lastName: agent.user.lastName,
+          email: agent.user.email,
+          phoneNumber: agent.user.phoneNumber,
+          profilePics: agent.user.profilePics,
+        }
         : null,
       // Full profile
       profile: agent.profile ?? null,
@@ -899,7 +940,7 @@ export class AdminService {
 
     const [orders, total] = await this.orderRepo.findAndCount({
       where,
-      relations: ['user', 'orderItems', 'orderItems.product'],
+      relations: ['user', 'orderItems', 'orderItems.product', 'orderItems.product.agent', 'orderItems.product.agent.user'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip,
@@ -913,12 +954,37 @@ export class AdminService {
           .join(', ') ||
         o.projectDsc ||
         'Marketplace Order';
+
+      const productIds =
+        o.orderItems
+          ?.map((item) => item.product?.productId || (item.product?.id ? item.product.id.slice(0, 8).toUpperCase() : null))
+          .filter(Boolean)
+          .join(', ') || 'N/A';
+
+      const vendorNames =
+        o.orderItems
+          ?.map((item) => {
+            const agent = item.product?.agent;
+            return agent?.businessName || (agent?.user ? `${agent.user.firstName} ${agent.user.lastName}` : null);
+          })
+          .filter(Boolean)
+          .join(', ') || 'Mejarc Vendor';
+
+      const transactionId =
+        o.payStackPayment?.reference ||
+        o.payStackPayment?.id ||
+        `TXN-${o.id.slice(0, 8).toUpperCase()}`;
+
       const channel = o.payStackPayment?.channel;
       const formattedChannel = channel
         ? channel.charAt(0).toUpperCase() + channel.slice(1)
         : 'Card';
       return {
         id: o.id,
+        orderId: `ORD-${o.id.slice(0, 8).toUpperCase()}`,
+        productId: productIds,
+        transactionId: transactionId,
+        vendorName: vendorNames,
         customer: o.user ? `${o.user.firstName} ${o.user.lastName}` : 'Unknown',
         amount: o.grandTotal,
         method: o.paymentMethod || formattedChannel,
@@ -940,7 +1006,7 @@ export class AdminService {
     const skip = (page - 1) * limit;
 
     const withdrawalRequestRepo =
-      this.marketProductRepo.manager.getRepository(WithdrawalRequest);
+      this.marketProductRepo.manager.getRepository(WithdrawalRequest) as Repository<WithdrawalRequest>;
     const [requests, total] = await withdrawalRequestRepo.findAndCount({
       relations: ['agent', 'agent.user', 'agent.profile'],
       order: { createdAt: 'DESC' },
@@ -948,7 +1014,7 @@ export class AdminService {
       skip,
     });
 
-    const data = requests.map((r) => ({
+    const data = requests.map((r: any) => ({
       id: r.id,
       agent: r.agent?.user
         ? `${r.agent.user.firstName} ${r.agent.user.lastName}`
@@ -1067,6 +1133,7 @@ export class AdminService {
 
     const data = products.map((p) => ({
       id: p.id,
+      productId: p.productId || (p.id ? `PRD-${p.id.slice(0, 8).toUpperCase()}` : 'N/A'),
       title: p.title,
       category: p.category,
       planType: p.planType,
@@ -1074,7 +1141,9 @@ export class AdminService {
       status: p.status,
       agent: p.agent?.user
         ? `${p.agent.user.firstName} ${p.agent.user.lastName}`
-        : 'Unknown',
+        : p.agent?.businessName || 'Unknown',
+      vendorId: p.agent?.vendorId || (p.agent?.id ? `VN${p.agent.id.slice(0, 4).toUpperCase()}` : 'N/A'),
+      vendorName: p.agent?.businessName || (p.agent?.user ? `${p.agent.user.firstName} ${p.agent.user.lastName}` : 'N/A'),
       agentId: p.agentId,
       agentAvatar:
         p.agent?.user?.profilePics || p.agent?.profile?.profilePicture || null,
@@ -1180,21 +1249,47 @@ export class AdminService {
 
   async getAgentPerformance(query: any) {
     const agents = await this.agentRepo.find({
-      relations: ['user'],
+      relations: ['user', 'wallet'],
       take: 50,
     });
 
-    const data = agents.map((a) => ({
-      id: a.id,
-      name: a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown',
-      handled: 0,
-      completed: 0,
-      ongoing: 0,
-      cancelled: 0,
-      disputed: 0,
-      earnings: '₦0',
-      rating: 'N/A',
-    }));
+    const withdrawalRepo = this.marketProductRepo.manager.getRepository(WithdrawalRequest) as Repository<WithdrawalRequest>;
+
+    const data = await Promise.all(
+      agents.map(async (a) => {
+        const vendorId = a.vendorId || (a.id ? `VN${a.id.slice(0, 4).toUpperCase()}` : 'N/A');
+        const earningsNum = a.wallet ? Number(a.wallet.lifetimeEarnings || a.wallet.balance || 0) : 0;
+        
+        // Calculate total amount paid out to agent
+        const transferredWithdrawals = await withdrawalRepo.find({
+          where: { agentId: a.id, status: In(['transferred', 'approved']) },
+        });
+        const totalPayoutNum = transferredWithdrawals.reduce((sum, w: any) => sum + Number(w.amount || 0), 0);
+        const outstandingBalance = Math.max(0, earningsNum - totalPayoutNum);
+
+        const productsCount = await this.marketProductRepo.count({
+          where: { agentId: a.id, status: MarketProductStatus.APPROVED },
+        });
+
+        return {
+          id: a.id,
+          vendorId,
+          name: a.user ? `${a.user.firstName} ${a.user.lastName}` : a.businessName || 'Agent',
+          businessName: a.businessName || 'N/A',
+          handled: productsCount,
+          completed: productsCount,
+          ongoing: 0,
+          cancelled: 0,
+          disputed: 0,
+          earnings: `₦${earningsNum.toLocaleString()}`,
+          rawEarnings: earningsNum,
+          totalPayout: `₦${totalPayoutNum.toLocaleString()}`,
+          rawTotalPayout: totalPayoutNum,
+          balanceOwed: `₦${outstandingBalance.toLocaleString()}`,
+          rating: '5.0/5',
+        };
+      }),
+    );
 
     return { data, meta: { total: data.length } };
   }

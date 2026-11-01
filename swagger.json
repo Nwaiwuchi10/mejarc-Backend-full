@@ -1401,6 +1401,88 @@
         ]
       }
     },
+    "/admin/approve-vendor-profile-change": {
+      "post": {
+        "operationId": "AdminController_approveVendorProfileChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agentId": {
+                    "type": "string",
+                    "example": "uuid"
+                  }
+                },
+                "required": [
+                  "agentId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Approve vendor name/email modification",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/reject-vendor-profile-change": {
+      "post": {
+        "operationId": "AdminController_rejectVendorProfileChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agentId": {
+                    "type": "string",
+                    "example": "uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Invalid credentials"
+                  }
+                },
+                "required": [
+                  "agentId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Reject vendor name/email modification",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
     "/admin": {
       "get": {
         "operationId": "AdminController_findAll",

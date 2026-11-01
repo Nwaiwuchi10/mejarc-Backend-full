@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToOne,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { ConversationMember } from './conversation-member.entity';
 import { Message } from './message.entity';
 

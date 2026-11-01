@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository, Between, In } from 'src/database/database.module';
 import { Agent } from './entities/agent.entity';
 import { AgentProfile } from './entities/agent-profile.entity';
 import { CustomDesign } from '../customdesign/entities/customdesign.entity';

@@ -10,7 +10,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import * as bcrypt from 'bcryptjs';
 import { UserAddress } from './user-adress.entity';
 import { UserNotificationSetting } from './user-notification-setting.entity';

@@ -1,9 +1,10 @@
+import { NodemailerMailer } from "src/utils/nodemailer-mailer";
 // mail.service.ts
 import * as dotenv from 'dotenv';
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from 'src/database/database.module';
 import { User } from '../../user/entities/user.entity';
-import { Repository } from 'typeorm';
+import { Repository } from 'src/database/database.module';
 import { v4 as uuidv4 } from 'uuid';
 import * as SibApiV3Sdk from 'sib-api-v3-sdk';
 
@@ -21,7 +22,7 @@ export class MailService {
     const apiKey = defaultClient.authentications['api-key'];
     apiKey.apiKey = process.env.BREVO_API_KEY;
 
-    this.brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
+    this.brevoClient = NodemailerMailer as any;
   }
 
   async ConfirmOrder(
@@ -43,7 +44,8 @@ export class MailService {
         orderItems
           .map((item: any) => {
             const title = item.title || item.product?.title || 'Building Plan';
-            return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
+            const prodId = item.product?.productId || (item.productId && !item.productId.includes('-') && item.productId.length < 12 ? item.productId : 'PRD001');
+            return `<li style="margin-bottom: 6px;"><strong>${title}</strong> (Product ID: <span style="font-family: monospace; color: #0284c7; font-weight: bold;">${prodId}</span>) &bull; Qty: ${item.totalQuantity || 1}</li>`;
           })
           .join('') +
         `
@@ -126,7 +128,8 @@ export class MailService {
         orderItems
           .map((item: any) => {
             const title = item.product?.title || item.title || 'Building Plan';
-            return `<li>${title} (Qty: ${item.totalQuantity || 1})</li>`;
+            const prodId = item.product?.productId || (item.productId && !item.productId.includes('-') && item.productId.length < 12 ? item.productId : 'PRD001');
+            return `<li style="margin-bottom: 6px;"><strong>${title}</strong> (Product ID: <span style="font-family: monospace; color: #0284c7; font-weight: bold;">${prodId}</span>) &bull; Qty: ${item.totalQuantity || 1}</li>`;
           })
           .join('') +
         `
@@ -199,11 +202,12 @@ export class MailService {
       itemsHtml += orderItems
         .map((item) => {
           const productName = item?.product?.title || 'N/A';
+          const prodId = item?.product?.productId || (item?.productId && !item?.productId.includes('-') && item?.productId.length < 12 ? item?.productId : 'PRD001');
           const quantity = item?.totalQuantity || 0;
           const price = item?.product?.price || 0;
           const total = quantity * price;
 
-          return `<tr><td style="padding: 8px; border: 1px solid #ccc;">${productName}</td><td style="padding: 8px; border: 1px solid #ccc;">${quantity}</td><td style="padding: 8px; border: 1px solid #ccc;">₦${total.toLocaleString()}</td></tr>`;
+          return `<tr><td style="padding: 8px; border: 1px solid #ccc;">${productName} <br/><span style="font-size: 11px; font-family: monospace; color: #0284c7;">ID: ${prodId}</span></td><td style="padding: 8px; border: 1px solid #ccc;">${quantity}</td><td style="padding: 8px; border: 1px solid #ccc;">₦${total.toLocaleString()}</td></tr>`;
         })
         .join('');
     }
@@ -274,11 +278,12 @@ export class MailService {
       itemsHtml += orderItems
         .map((item) => {
           const productName = item?.product?.title || 'N/A';
+          const prodId = item?.product?.productId || (item?.productId && !item?.productId.includes('-') && item?.productId.length < 12 ? item?.productId : 'PRD001');
           const quantity = item?.totalQuantity || 0;
           const price = item?.product?.price || 0;
           const total = quantity * price;
 
-          return `<tr><td style="padding: 8px; border: 1px solid #ccc;">${productName}</td><td style="padding: 8px; border: 1px solid #ccc;">${quantity}</td><td style="padding: 8px; border: 1px solid #ccc;">₦${total.toLocaleString()}</td></tr>`;
+          return `<tr><td style="padding: 8px; border: 1px solid #ccc;">${productName} <br/><span style="font-size: 11px; font-family: monospace; color: #0284c7;">ID: ${prodId}</span></td><td style="padding: 8px; border: 1px solid #ccc;">${quantity}</td><td style="padding: 8px; border: 1px solid #ccc;">₦${total.toLocaleString()}</td></tr>`;
         })
         .join('');
     }
@@ -391,6 +396,7 @@ export class MailService {
       productsHtml += orderItems
         .map((item) => {
           const productName = item?.product?.title || 'Unknown Product';
+          const prodId = item?.product?.productId || (item?.productId && !item?.productId.includes('-') && item?.productId.length < 12 ? item?.productId : 'PRD001');
           let filesHtml = '<ul style="padding-left: 20px;">';
 
           const formatFiles = (planField: string[] | string, label: string) => {
@@ -454,8 +460,11 @@ export class MailService {
 
           return `
           <div style="border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
-             <h4 style="margin-top: 0; color: #333;">${productName}</h4>
-             <p style="font-size: 14px; color: #666;">Here are your product files:</p>
+             <div style="display: flex; justify-content: space-between; align-items: baseline;">
+               <h4 style="margin-top: 0; color: #333;">${productName}</h4>
+               <span style="font-family: monospace; font-size: 12px; color: #0284c7; font-weight: bold; background: #e0f2fe; padding: 2px 8px; border-radius: 4px;">Product ID: ${prodId}</span>
+             </div>
+             <p style="font-size: 14px; color: #666; margin-top: 6px;">Here are your product files:</p>
              ${filesHtml}
           </div>
         `;
@@ -479,7 +488,7 @@ export class MailService {
             order
               ? `
           <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #FFC700; font-size: 14px; color: #555;">
-            <p style="margin: 0 0 5px;"><strong>Order ID:</strong> ${order.id}</p>
+            <p style="margin: 0 0 5px;"><strong>Order ID:</strong> ${order.orderNumber || (order.id ? 'ORD-' + String(order.id).replace(/[^a-zA-Z0-9]/g, '').slice(-8).toUpperCase() : 'ORD-COMPLETED')}</p>
             <p style="margin: 0 0 5px;"><strong>Payment Reference:</strong> ${order.payStackPayment?.reference || 'N/A'}</p>
             <p style="margin: 0 0 5px;"><strong>Amount Paid:</strong> ₦${parseFloat(order.grandTotal || '0').toLocaleString()}</p>
             <p style="margin: 0 0 5px;"><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>

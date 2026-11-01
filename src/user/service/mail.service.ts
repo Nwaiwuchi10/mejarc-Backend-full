@@ -1,3 +1,4 @@
+import { NodemailerMailer } from "src/utils/nodemailer-mailer";
 import * as nodemailer from 'nodemailer';
 import { Injectable, Logger } from '@nestjs/common';
 import * as dotenv from 'dotenv';
@@ -17,7 +18,7 @@ export class MailService {
     const apiKey = defaultClient.authentications['api-key'];
     apiKey.apiKey = process.env.BREVO_API_KEY;
 
-    this.brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
+    this.brevoClient = NodemailerMailer as any;
   }
   // === ONBOARDING MAIL ===
 

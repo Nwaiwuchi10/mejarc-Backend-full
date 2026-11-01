@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'src/database/database.module';
 
 @Entity('user_addresses')
 export class UserAddress {

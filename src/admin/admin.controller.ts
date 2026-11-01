@@ -187,6 +187,39 @@ export class AdminController {
     return this.adminService.rejectAgent(body.agentId, body.reason);
   }
 
+  @UseGuards(AdminAuthGuard)
+  @Post('approve-vendor-profile-change')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Approve vendor name/email modification' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { agentId: { type: 'string', example: 'uuid' } },
+      required: ['agentId'],
+    },
+  })
+  async approveVendorProfileChange(@Body() body: { agentId: string }) {
+    return this.adminService.approveVendorProfileChange(body.agentId);
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post('reject-vendor-profile-change')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Reject vendor name/email modification' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        agentId: { type: 'string', example: 'uuid' },
+        reason: { type: 'string', example: 'Invalid credentials' },
+      },
+      required: ['agentId'],
+    },
+  })
+  async rejectVendorProfileChange(@Body() body: { agentId: string; reason?: string }) {
+    return this.adminService.rejectVendorProfileChange(body.agentId, body.reason);
+  }
+
   // ══════════════════════════════════════════
   // VIEW ALL ADMINS
   // GET /admin

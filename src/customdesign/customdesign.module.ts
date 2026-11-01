@@ -4,7 +4,7 @@
  */
 
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from 'src/database/database.module';
 import { CustomDesign } from './entities/customdesign.entity';
 import { CustomDesignPayment } from './entities/custom-design-payment.entity';
 import { CustomDesignService } from './customdesign.service';

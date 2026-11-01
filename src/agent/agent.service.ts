@@ -12,8 +12,8 @@ import { CreateAgentBioDto } from './dto/create-agent-bio.dto';
 import { CreateAgentKycDto } from './dto/create-agent-kyc.dto';
 import { ProOverviewDto } from './dto/pro-overview.dto';
 import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { InjectRepository } from 'src/database/database.module';
+import { Repository, Like } from 'src/database/database.module';
 import {
   Agent,
   AgentKycStatus,
@@ -134,7 +134,7 @@ export class AgentService {
     }
 
     // create or update profile entity
-    let profile = await this.profileRepo.findOne({
+    let profile: any = await this.profileRepo.findOne({
       where: { agentId: agent.id },
     });
     if (!profile) {
@@ -304,7 +304,7 @@ export class AgentService {
     }
 
     // Find existing KYC record for this agent (e.g., latest or PENDING)
-    let kyc = await this.kycRepo.findOne({
+    let kyc: any = await this.kycRepo.findOne({
       where: { agentId: agent.id },
       order: { createdAt: 'DESC' },
     });
@@ -690,7 +690,7 @@ export class AgentService {
     if (!agent) throw new NotFoundException('Agent not found');
 
     // attach document to latest KYC record or create a new one
-    let latestKyc = await this.kycRepo.findOne({
+    let latestKyc: any = await this.kycRepo.findOne({
       where: { agentId: agent.id },
       order: { createdAt: 'DESC' },
     });

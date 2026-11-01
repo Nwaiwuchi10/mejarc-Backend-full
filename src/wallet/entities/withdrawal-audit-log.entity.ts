@@ -6,7 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { WithdrawalRequest } from './withdrawal-request.entity';
 import { Agent } from '../../agent/entities/agent.entity';
 import { Admin } from '../../admin/entities/admin.entity';

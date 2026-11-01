@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from 'src/database/database.module';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull } from 'src/database/database.module';
 import { MarketProduct } from '../marketproduct/entities/marketproduct.entity';
 import { User } from '../user/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
@@ -230,7 +230,7 @@ export class OrderService {
           'Customer email not found from Paystack response.',
         );
 
-      let user = await this.userRepository.findOne({
+      let user: any = await this.userRepository.findOne({
         where: { email: customerEmail },
       });
 

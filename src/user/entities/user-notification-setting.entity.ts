@@ -6,7 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { User } from './user.entity';
 
 @Entity('user_notification_settings')

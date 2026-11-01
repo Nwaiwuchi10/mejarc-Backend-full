@@ -7,7 +7,7 @@ import {
   OneToOne,
   JoinColumn,
   OneToMany,
-} from 'typeorm';
+} from 'src/database/database.module';
 import { Agent } from '../../agent/entities/agent.entity';
 import { WalletTransaction } from './wallet-transaction.entity';
 

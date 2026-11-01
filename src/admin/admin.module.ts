@@ -1,6 +1,6 @@
 import { WalletModule } from '../wallet/wallet.module';
 import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from 'src/database/database.module';
 import { Admin } from './entities/admin.entity';
 import { User } from '../user/entities/user.entity';
 import { Agent } from '../agent/entities/agent.entity';

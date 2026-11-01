@@ -3,7 +3,7 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { MailService } from './service/mail.service';
 import { UserAuthGuard } from './guard/user.guard';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from 'src/database/database.module';
 import { User } from './entities/user.entity';
 import { UserAddress } from './entities/user-adress.entity';
 import { UserNotificationSetting } from './entities/user-notification-setting.entity';
