@@ -244,7 +244,7 @@ STEP 6: Budget & Timeline
 COMMON REQUESTS
 =======================================================================
 
-1. Initialize Landscape Design
+1. Initialize Building Guide
    POST /custom-design/initialize
    {
    "serviceType": "landscape-design",
@@ -341,10 +341,10 @@ MINIMUM BUDGETS BY SERVICE
 
 Service Type Min Budget
 ───────────────────────────────────────────────
-Landscape Design ₦500,000
+Building Guide ₦500,000
 Architectural 2D ₦600,000
 MEP Drawings ₦700,000
-Interior Design ₦750,000
+Product Design ₦750,000
 3D Rendering ₦800,000
 Structural Engineering ₦900,000
 BIM ₦1,000,000

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mejarc Platform - Integration Specs & Developer Guidelines</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 13.5px;
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .title-area h1 {
+    font-size: 24px;
+    margin: 0 0 6px 0;
+    color: #0f172a;
+    font-weight: 700;
+  }
+  .title-area .subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    font-weight: 500;
+  }
+  .badge {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  h2 {
+    font-size: 15px;
+    color: #0f172a;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    border-left: 3.5px solid #2563eb;
+    padding-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  p {
+    margin: 6px 0 10px 0;
+  }
+  ul {
+    margin: 6px 0 12px 18px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 6px;
+  }
+  strong {
+    color: #0f172a;
+  }
+  .card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background-color: #f1f5f9;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #0f172a;
+  }
+  pre {
+    background-color: #0f172a;
+    color: #f8fafc;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    margin: 8px 0;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 10px 0;
+  }
+  .box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .box-title {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #1e40af;
+    margin-bottom: 4px;
+  }
+  .footer {
+    margin-top: 30px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 11px;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-area">
+    <h1>MEJARC PLATFORM</h1>
+    <p class="subtitle">Integration Specifications & Developer Guidelines</p>
+  </div>
+  <div>
+    <span class="badge">Technical Reference</span>
+  </div>
+</div>
+
+<h2>1. Architecture & Frontend Deployment Options</h2>
+<p>Mejarc follows an API-first, decoupled architecture allowing versatile frontend integration patterns:</p>
+
+<div class="grid">
+  <div class="box">
+    <div class="box-title">React / Next.js Components (Recommended)</div>
+    Modular component integration consuming REST API directly. Preferred tech stack is React / Next.js with TypeScript and Tailwind/Vanilla CSS.
+  </div>
+  <div class="box">
+    <div class="box-title">Micro-Frontends</div>
+    Supported via Webpack/Vite Module Federation or single-spa wrappers for segregated modules (e.g. Agent Portal, Admin Console, Marketplace).
+  </div>
+  <div class="box">
+    <div class="box-title">iFrames & Embedded Widgets</div>
+    Supported for standalone checkout or verification widgets. Communicates with parent host application securely via <code>window.postMessage</code>.
+  </div>
+  <div class="box">
+    <div class="box-title">Custom HTTP Clients</div>
+    Standard headless integration using any modern web or mobile runtime (Vue, Svelte, Flutter, React Native, Swift, Kotlin).
+  </div>
+</div>
+
+<h2>2. Authentication & Session Context</h2>
+<p>Authentication is handled via stateful / two-factor authenticated <strong>JSON Web Tokens (JWT)</strong>.</p>
+<ul>
+  <li><strong>Authentication Handshake:</strong>
+    <ol style="margin-top: 4px; margin-left: 18px; padding-left: 0;">
+      <li><code>POST /user/login</code> (or <code>/agent/login</code> / <code>/admin/login</code>) sends credentials and initiates email OTP verification.</li>
+      <li><code>POST /user/verify-login-token</code> validates the OTP code and returns a signed <code>accessToken</code> plus profile details.</li>
+    </ol>
+  </li>
+  <li><strong>Header Authorization:</strong> All protected requests must supply the Bearer token:
+    <pre>Authorization: Bearer &lt;accessToken&gt;</pre>
+  </li>
+  <li><strong>Context Sharing with External Extensions:</strong>
+    <ul>
+      <li><strong>Same-domain micro-frontends:</strong> Context stored in secure <code>HttpOnly</code> cookies or encrypted session storage.</li>
+      <li><strong>Cross-origin iFrame extensions:</strong> Strict handshake via <code>window.postMessage</code> validating <code>event.origin</code> to exchange short-lived extension tokens.</li>
+      <li><strong>Role-Based Access Control (RBAC):</strong> Validated server-side via token payload roles (<code>User</code>, <code>Agent</code>, <code>Admin</code>, <code>SuperAdmin</code>).</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>3. Platform APIs & Swagger Documentation</h2>
+<p>Mejarc's backend is powered by <strong>NestJS (TypeScript)</strong> with PostgreSQL and TypeORM.</p>
+<ul>
+  <li><strong>Swagger / OpenAPI Interactive UI:</strong> Available at <code>/api</code> (e.g., <code>https://api-dev.mejarc.com/api</code> or <code>http://localhost:3000/api</code>).</li>
+  <li><strong>Complete Schema Export:</strong> Exported as <code>swagger.json</code> inside the backend codebase for instant client code-generation or Postman import.</li>
+  <li><strong>Core Resource Routes:</strong>
+    <ul>
+      <li><code>/user/*</code> — Profile management, authentication, passwords, and verification.</li>
+      <li><code>/agent/*</code> — Agent registration, onboarding, and document uploads.</li>
+      <li><code>/marketproduct/*</code> — Product catalog, listings, categories, and shopping cart.</li>
+      <li><code>/admin/*</code> — Operations, approvals, moderation, metrics, and user management.</li>
+      <li><code>/contact/*</code> — Inquiries, customer support, and issue tickets.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>4. Webhooks, Events & Sandbox Environments</h2>
+<ul>
+  <li><strong>Sandbox / Staging Environments:</strong>
+    <ul>
+      <li>Staging API Base URL: <code>https://api-dev.mejarc.com</code> (or local environment at <code>http://localhost:3000</code>).</li>
+      <li>Dedicated staging PostgreSQL database and test mail server (Mailtrap/SMTP sandbox) for OTP testing.</li>
+    </ul>
+  </li>
+  <li><strong>Webhooks & Asynchronous Events:</strong>
+    <ul>
+      <li>External payment providers (Paystack, Flutterwave, Stripe) and KYC verification services deliver webhooks to designated webhook endpoints.</li>
+      <li>All incoming webhooks require cryptographic signature verification (e.g., <code>x-paystack-signature</code> or HMAC-SHA256 digest).</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="footer">
+  <span>Mejarc Engineering Team &bull; Confidential & Developer Reference</span>
+  <span>mejarc.com</span>
+</div>
+
+</body>
+</html>

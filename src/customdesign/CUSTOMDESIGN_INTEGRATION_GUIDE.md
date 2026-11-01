@@ -6,8 +6,8 @@
 - for the MejarcTech backend platform.
 -
 - SERVICE TYPES SUPPORTED:
-- 1.  Landscape Design
-- 2.  Interior Design
+- 1.  Building Guide
+- 2.  Product Design
 - 3.  3D Rendering & Visualization
 - 4.  2D Architectural Drawings
 - 5.  Building Information Modeling (BIM)
@@ -237,7 +237,7 @@
 - Response: ServiceConfig
 - {
 - serviceType: "landscape-design",
-- serviceName: "Landscape Design",
+- serviceName: "Building Guide",
 - contexts: [...],
 - projectTypes: [...],
 - scopes: [...],

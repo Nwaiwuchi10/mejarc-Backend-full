@@ -13,8 +13,8 @@ import { Rating } from './rating.entity';
 
 export enum ProductCategory {
   BUILDING_PLAN = 'Building Plan',
-  INTERIOR_DESIGN = 'Interior Design',
-  LANDSCAPE_DESIGN = 'Landscape Design',
+  INTERIOR_DESIGN = 'Product Design',
+  LANDSCAPE_DESIGN = 'Building Guide',
 }
 
 export enum PlanType {

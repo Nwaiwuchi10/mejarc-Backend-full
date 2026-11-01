@@ -7194,8 +7194,8 @@
           "category": {
             "enum": [
               "Building Plan",
-              "Interior Design",
-              "Landscape Design"
+              "Product Design",
+              "Building Guide"
             ],
             "type": "string"
           },

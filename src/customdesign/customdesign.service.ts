@@ -414,7 +414,7 @@ export class CustomDesignService {
   }
 
   /**
-   * Maps frontend category strings (e.g., "Landscape", "Interior Design")
+   * Maps frontend category strings (e.g., "Landscape", "Product Design")
    * to the backend ServiceType enum.
    */
   mapCategoryToServiceType(category: string): ServiceType {

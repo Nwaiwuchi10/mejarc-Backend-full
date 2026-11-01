@@ -60,7 +60,7 @@ This API handles the complete agent registration flow with multi-step registrati
 {
   "yearsOfExperience": 8,
   "preferredTitle": "Architect",
-  "specialization": ["Residential", "Commercial", "Landscape Design"],
+  "specialization": ["Residential", "Commercial", "Building Guide"],
   "portfolioLink": "https://myportfolio.com",
   "profilePicture": "https://s3.amazonaws.com/bucket/profile.jpg",
   "phoneNumber": "+1 234 567 8900"
@@ -75,7 +75,7 @@ This API handles the complete agent registration flow with multi-step registrati
   "registrationStatus": "bio_pending",
   "yearsOfExperience": 8,
   "preferredTitle": "Architect",
-  "specialization": ["Residential", "Commercial", "Landscape Design"],
+  "specialization": ["Residential", "Commercial", "Building Guide"],
   "portfolioLink": "https://myportfolio.com",
   "profilePicture": "https://s3.amazonaws.com/bucket/profile.jpg",
   "createdAt": "2026-02-18T10:30:00Z",

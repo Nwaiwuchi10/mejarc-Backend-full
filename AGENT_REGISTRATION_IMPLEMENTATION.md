@@ -342,7 +342,7 @@ HTTP/1.1 200 OK
   "registrationStatus": "bio_pending",
   "yearsOfExperience": 8,
   "preferredTitle": "Architect",
-  "specialization": ["Residential", "Commercial", "Landscape Design"],
+  "specialization": ["Residential", "Commercial", "Building Guide"],
   "createdAt": "2026-02-18T10:30:00Z",
   "updatedAt": "2026-02-18T10:45:00Z"
 }

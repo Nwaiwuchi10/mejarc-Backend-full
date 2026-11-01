@@ -1051,7 +1051,7 @@ export class AdminService {
       if (type === 'Building Plan') {
         where.category = 'Building Plan';
       } else if (type === 'Product Design') {
-        where.category = In(['Interior Design', 'Landscape Design']);
+        where.category = In(['Product Design', 'Building Guide']);
       } else {
         where.category = type;
       }

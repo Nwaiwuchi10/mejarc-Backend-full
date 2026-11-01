@@ -125,7 +125,7 @@ export class MarketproductService {
     if (planType) filters.planType = planType;
     if (category) {
       if (category === 'Product Design') {
-        filters.category = In(['Interior Design', 'Landscape Design']);
+        filters.category = In(['Product Design', 'Building Guide']);
       } else if (category === 'Building Plans') {
         filters.category = 'Building Plan';
       } else if (category === 'Building Guides') {

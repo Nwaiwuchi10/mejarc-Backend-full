@@ -7,12 +7,12 @@
 import { ServiceType, ServiceConfig } from '../customdesign.types';
 
 // ---------------------------------------------------------------------------
-// 1. Landscape Design
+// 1. Building Guide
 // Frontend: LandscapeServiceContextPage.tsx
 // ---------------------------------------------------------------------------
 export const LANDSCAPE_DESIGN_CONFIG: ServiceConfig = {
   serviceType: ServiceType.LANDSCAPE_DESIGN,
-  serviceName: 'Landscape Design',
+  serviceName: 'Building Guide',
   contexts: [
     {
       title: 'Residential Garden Design',
@@ -129,7 +129,7 @@ export const LANDSCAPE_DESIGN_CONFIG: ServiceConfig = {
 };
 
 // ---------------------------------------------------------------------------
-// 2. Interior Design (Product / Residential-Commercial)
+// 2. Product Design (Product / Residential-Commercial)
 // Frontend: InterirorDesignServiceContextPage.tsx
 // ---------------------------------------------------------------------------
 export const PRODUCT_DESIGN_CONFIG: ServiceConfig = {
@@ -243,12 +243,12 @@ export const PRODUCT_DESIGN_CONFIG: ServiceConfig = {
 };
 
 // ---------------------------------------------------------------------------
-// 3. Interior Design (Interior Spaces)
+// 3. Product Design (Interior Spaces)
 // Frontend: InterirorDesignServiceContextPage2.tsx
 // ---------------------------------------------------------------------------
 export const INTERIOR_DESIGN_CONFIG: ServiceConfig = {
   serviceType: ServiceType.INTERIOR_DESIGN,
-  serviceName: 'Interior Design',
+  serviceName: 'Product Design',
   contexts: [
     {
       title: 'Residential Interiors',
